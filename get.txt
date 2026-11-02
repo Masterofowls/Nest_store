@@ -1,0 +1,6 @@
+GET /hello
+→ Nest selects AppController.getHello()
+→ controller calls AppService.getHello()
+→ service returns 'Online Store API'
+→ controller returns it
+→ Nest sends the HTTP response

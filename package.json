@@ -1,0 +1,22 @@
+{
+  "name": "store_learning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "private": true,
+  "workspaces":["apps/*"],
+  "scripts": {
+      "dev": "npm run start:dev --workspace apps/api",
+      "build": "npm run build --workspace apps/api",
+      "test": "npm test --workspace apps/api --",
+      "lint": "npm run lint --workspace apps/api",
+      "format:check": "npm run format:check --workspace apps/api",
+      "typecheck": "npm run typecheck --workspace apps/api",
+      "test:e2e": "npm run test:e2e --workspace apps/api --",
+      "test:cov": "npm run test:cov --workspace apps/api --"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
