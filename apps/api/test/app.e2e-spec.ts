@@ -27,6 +27,37 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer()).get('/').expect(404);
   });
 
+  it('/products (GET) returns the products', () => {
+    return request(app.getHttpServer())
+      .get('/products')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([
+        { id: 'p1', name: 'Mechanical Keyboard' },
+        { id: 'p2', name: 'Wireless Mouse' },
+      ]);
+  });
+
+  it('/products/p1 (GET) returns one product', () => {
+    return request(app.getHttpServer())
+      .get('/products/p1')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect({ id: 'p1', name: 'Mechanical Keyboard' });
+  });
+
+  it('/products/missing (GET) returns error for missing product', () => {
+    return request(app.getHttpServer())
+      .get('/products/missing')
+      .expect(404)
+      .expect('Content-Type', /json/)
+      .expect({
+        message: 'Product not found',
+        error: 'Not Found',
+        statusCode: 404,
+      });
+  });
+
   afterEach(async () => {
     await app.close();
   });
