@@ -69,6 +69,39 @@ describe('ProductsService', () => {
     expect(service.findOne('missing')).toEqual(undefined);
   });
 
+  it('should create a product with a generated ID', () => {
+    const product = service.postProduct('USB-C Hub');
+
+    expect(product).toMatchObject({ name: 'USB-C Hub' });
+    expect(product.id).toEqual(expect.any(String));
+    expect(product.id).not.toBe('');
+  });
+
+  it('should create a product with and find it', () => {
+    const product = service.postProduct('HDMI cable');
+
+    expect(product).toMatchObject({ name: 'HDMI cable' });
+    expect(product.id).toEqual(expect.any(String));
+    expect(product.id).not.toBe('');
+    expect(service.findOne(product.id)).toEqual({
+      id: product.id,
+      name: 'HDMI cable',
+    });
+  });
+
+  it('should create two products and check their distinct ids', () => {
+    const product1 = service.postProduct('Laptop');
+    const product2 = service.postProduct('Phone');
+
+    expect(product1).toMatchObject({ name: 'Laptop' });
+    expect(product1.id).toEqual(expect.any(String));
+    expect(product1.id).not.toBe('');
+    expect(product2).toMatchObject({ name: 'Phone' });
+    expect(product2.id).toEqual(expect.any(String));
+    expect(product2.id).not.toBe('');
+    expect(product1.id).not.toBe(product2.id);
+  });
+
   it('should return product', () => {
     expect(service.getOrThrow('p1')).toEqual({
       id: 'p1',

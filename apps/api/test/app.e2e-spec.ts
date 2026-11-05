@@ -155,6 +155,52 @@ describe('AppController (e2e)', () => {
       .expect('Content-Type', /json/);
   });
 
+  it('/products (POST)  post product', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .send({ name: '  USB-C Hub  ' })
+      .expect(201)
+      .expect('Content-Type', /json/)
+      .expect((response) => {
+        const body: unknown = response.body;
+
+        expect(body).toHaveProperty('name', 'USB-C Hub');
+        expect(body).toHaveProperty('id', expect.stringMatching(/^.+$/));
+      });
+  });
+
+  it('POST /products rejects a missing name', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .send({})
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('POST /products rejects a numeric name', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .send({ name: 42 })
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('POST /products rejects an empty name', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .send({ name: '' })
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('POST /products rejects a whitespace-only name', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .send({ name: '   ' })
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
   afterEach(async () => {
     await app.close();
   });

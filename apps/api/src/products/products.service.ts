@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Product } from './product.interface';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class ProductsService {
-  private readonly products = [
+  private readonly products: Product[] = [
     { id: 'p1', name: 'Mechanical Keyboard' },
     { id: 'p2', name: 'Wireless Mouse' },
   ];
@@ -21,6 +23,15 @@ export class ProductsService {
 
   findOne(id: string) {
     return this.products.find((product) => product.id === id);
+  }
+
+  postProduct(name: string): Product {
+    const product = {
+      id: randomUUID(),
+      name: name,
+    };
+    this.products.push(product);
+    return product;
   }
 
   getOrThrow(id: string) {

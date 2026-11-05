@@ -6,6 +6,8 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  Post,
+  Body,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
@@ -28,5 +30,13 @@ export class ProductsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsService.getOrThrow(id);
+  }
+
+  @Post()
+  postProduct(@Body('name') name: unknown) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      throw new BadRequestException('Name must be a non-empty string');
+    }
+    return this.productsService.postProduct(name.trim());
   }
 }
