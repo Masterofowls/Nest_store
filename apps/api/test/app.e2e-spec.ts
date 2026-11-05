@@ -201,6 +201,50 @@ describe('AppController (e2e)', () => {
       .expect('Content-Type', /json/);
   });
 
+  it('PATCH /products/p1', () => {
+    return request(app.getHttpServer())
+      .patch('/products/p1')
+      .send({ name: ' Compact Keyboard  ' })
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect({ id: 'p1', name: 'Compact Keyboard' });
+  });
+
+  it('PATCH rejects an unknown product', () => {
+    return request(app.getHttpServer())
+      .patch('/products/missing')
+      .send({ name: 'Keyboard' })
+      .expect(404);
+  });
+
+  it('PATCH rejects a missing name', () => {
+    return request(app.getHttpServer())
+      .patch('/products/p1')
+      .send({})
+      .expect(400);
+  });
+
+  it('PATCH rejects a numeric name', () => {
+    return request(app.getHttpServer())
+      .patch('/products/p1')
+      .send({ name: 42 })
+      .expect(400);
+  });
+
+  it('PATCH rejects an empty name', () => {
+    return request(app.getHttpServer())
+      .patch('/products/p1')
+      .send({ name: '' })
+      .expect(400);
+  });
+
+  it('PATCH rejects a whitespace-only name', () => {
+    return request(app.getHttpServer())
+      .patch('/products/p1')
+      .send({ name: '   ' })
+      .expect(400);
+  });
+
   afterEach(async () => {
     await app.close();
   });

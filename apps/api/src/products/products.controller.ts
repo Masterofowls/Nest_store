@@ -8,6 +8,7 @@ import {
   Query,
   Post,
   Body,
+  Patch,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
@@ -38,5 +39,13 @@ export class ProductsController {
       throw new BadRequestException('Name must be a non-empty string');
     }
     return this.productsService.postProduct(name.trim());
+  }
+
+  @Patch(':id')
+  patchProduct(@Param('id') id: string, @Body('name') name: unknown) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      throw new BadRequestException('Name must be a non-empty string');
+    }
+    return this.productsService.patchProduct(name.trim(), id);
   }
 }

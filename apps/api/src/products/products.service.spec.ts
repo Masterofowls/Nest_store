@@ -109,6 +109,24 @@ describe('ProductsService', () => {
     });
   });
 
+  it('should update product', () => {
+    expect(service.patchProduct('Laptop', 'p1')).toEqual({
+      id: 'p1',
+      name: 'Laptop',
+    });
+    expect(service.findOne('p1')).toEqual({
+      id: 'p1',
+      name: 'Laptop',
+    });
+    expect(service.findAll()).toHaveLength(2);
+  });
+
+  it('should reject updating an unknown product', () => {
+    expect(() => service.patchProduct('Laptop', 'missing')).toThrow(
+      NotFoundException,
+    );
+  });
+
   it('should throw NotFound Exception when product is not found', () => {
     expect(() => service.getOrThrow('some')).toThrow(NotFoundException);
   });

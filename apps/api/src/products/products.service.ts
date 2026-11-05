@@ -34,6 +34,12 @@ export class ProductsService {
     return product;
   }
 
+  patchProduct(name: string, id: string): Product {
+    const product = this.getOrThrow(id);
+    product.name = name;
+    return product;
+  }
+
   getOrThrow(id: string) {
     const result = this.findOne(id);
     if (result === undefined) {

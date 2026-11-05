@@ -57,4 +57,45 @@ describe('ProductsController', () => {
   it('should throw error for unknown id', () => {
     expect(() => controller.findOne('missing')).toThrow(NotFoundException);
   });
+
+  it('should patch product', () => {
+    expect(controller.patchProduct('p1', '  Compact Keyboard  ')).toEqual({
+      id: 'p1',
+      name: 'Compact Keyboard',
+    });
+    expect(controller.findOne('p1')).toEqual({
+      id: 'p1',
+      name: 'Compact Keyboard',
+    });
+  });
+
+  it('should reject patching an unknown product', () => {
+    expect(() => controller.patchProduct('missing', 'Keyboard')).toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('should reject a missing update name', () => {
+    expect(() => controller.patchProduct('p1', undefined)).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('should reject a numeric update name', () => {
+    expect(() => controller.patchProduct('p1', 42)).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('should reject an empty update name', () => {
+    expect(() => controller.patchProduct('p1', '')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('should reject a whitespace-only update name', () => {
+    expect(() => controller.patchProduct('p1', '   ')).toThrow(
+      BadRequestException,
+    );
+  });
 });
