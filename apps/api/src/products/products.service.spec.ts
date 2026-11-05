@@ -20,6 +20,44 @@ describe('ProductsService', () => {
     ]);
   });
 
+  it('should return only p1', () => {
+    expect(service.findAll(undefined, 1, 1)).toEqual([
+      { id: 'p1', name: 'Mechanical Keyboard' },
+    ]);
+  });
+
+  it('should return only p2', () => {
+    expect(service.findAll(undefined, 2, 1)).toEqual([
+      { id: 'p2', name: 'Wireless Mouse' },
+    ]);
+  });
+
+  it('should return empty', () => {
+    expect(service.findAll(undefined, 3, 1)).toEqual([]);
+  });
+
+  it('should return only p2', () => {
+    expect(service.findAll('mouse', 1, 1)).toEqual([
+      { id: 'p2', name: 'Wireless Mouse' },
+    ]);
+  });
+
+  it('should return partial search', () => {
+    expect(service.findAll('key')).toEqual([
+      { id: 'p1', name: 'Mechanical Keyboard' },
+    ]);
+  });
+
+  it('should return case insensitive search', () => {
+    expect(service.findAll('MOUSE')).toEqual([
+      { id: 'p2', name: 'Wireless Mouse' },
+    ]);
+  });
+
+  it('should return no-match search', () => {
+    expect(service.findAll('Monitor')).toEqual([]);
+  });
+
   it('should return a product by id', () => {
     expect(service.findOne('p1')).toEqual({
       id: 'p1',

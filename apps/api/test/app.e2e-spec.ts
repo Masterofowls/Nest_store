@@ -38,6 +38,22 @@ describe('AppController (e2e)', () => {
       ]);
   });
 
+  it('/products?search=key (GET) returns search and product', () => {
+    return request(app.getHttpServer())
+      .get('/products?search=key')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([{ id: 'p1', name: 'Mechanical Keyboard' }]);
+  });
+
+  it('/products?search=monitor (GET) returns search for missing product', () => {
+    return request(app.getHttpServer())
+      .get('/products?search=monitor')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([]);
+  });
+
   it('/products/p1 (GET) returns one product', () => {
     return request(app.getHttpServer())
       .get('/products/p1')
@@ -56,6 +72,87 @@ describe('AppController (e2e)', () => {
         error: 'Not Found',
         statusCode: 404,
       });
+  });
+
+  it('/products?page=1&limit=1 (GET) returns one product', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=1&limit=1')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([{ id: 'p1', name: 'Mechanical Keyboard' }]);
+  });
+
+  it('/products?page=2&limit=1 (GET) returns one product', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=2&limit=1')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([{ id: 'p2', name: 'Wireless Mouse' }]);
+  });
+
+  it('/products?page=abc (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=abc')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?page=0 (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=0')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?page=-1 (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=-1')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?limit=0 (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?limit=0')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?limit=-1 (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?limit=-1')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?search=mouse&page=1&limit=1 (GET) returns only p2', () => {
+    return request(app.getHttpServer())
+      .get('/products?search=mouse&page=1&limit=1')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([{ id: 'p2', name: 'Wireless Mouse' }]);
+  });
+
+  it('/products?page=3&limit=1 (GET) returns nothing', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=3&limit=1')
+      .expect(200)
+      .expect('Content-Type', /json/)
+      .expect([]);
+  });
+
+  it('/products?limit=abc (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?limit=abc')
+      .expect(400)
+      .expect('Content-Type', /json/);
+  });
+
+  it('/products?page=1.5 (GET) returns error', () => {
+    return request(app.getHttpServer())
+      .get('/products?page=1.5')
+      .expect(400)
+      .expect('Content-Type', /json/);
   });
 
   afterEach(async () => {
