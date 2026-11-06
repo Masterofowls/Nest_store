@@ -98,4 +98,15 @@ describe('ProductsController', () => {
       BadRequestException,
     );
   });
+
+  it('should delete product', () => {
+    controller.deleteProduct('p1');
+    expect(() => controller.findOne('p1')).toThrow(NotFoundException);
+  });
+
+  it('should reject deleting an unknown product', () => {
+    expect(() => controller.deleteProduct('missing')).toThrow(
+      NotFoundException,
+    );
+  });
 });

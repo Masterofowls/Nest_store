@@ -9,6 +9,9 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 
@@ -47,5 +50,11 @@ export class ProductsController {
       throw new BadRequestException('Name must be a non-empty string');
     }
     return this.productsService.patchProduct(name.trim(), id);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(':id')
+  deleteProduct(@Param('id') id: string): void {
+    return this.productsService.deleteProduct(id);
   }
 }

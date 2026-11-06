@@ -40,6 +40,12 @@ export class ProductsService {
     return product;
   }
 
+  deleteProduct(id: string): void {
+    const product = this.getOrThrow(id);
+    const index = this.products.indexOf(product);
+    this.products.splice(index, 1);
+  }
+
   getOrThrow(id: string) {
     const result = this.findOne(id);
     if (result === undefined) {

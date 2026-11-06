@@ -245,6 +245,15 @@ describe('AppController (e2e)', () => {
       .expect(400);
   });
 
+  it('DELETE product', async () => {
+    await request(app.getHttpServer()).delete('/products/p1').expect(204);
+    await request(app.getHttpServer()).get('/products/p1').expect(404);
+  });
+
+  it('DELETE rejects an unknown product', () => {
+    return request(app.getHttpServer()).delete('/products/missing').expect(404);
+  });
+
   afterEach(async () => {
     await app.close();
   });

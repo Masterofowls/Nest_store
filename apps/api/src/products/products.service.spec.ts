@@ -109,6 +109,17 @@ describe('ProductsService', () => {
     });
   });
 
+  it('should delete product', () => {
+    service.deleteProduct('p1');
+    expect(service.findOne('p1')).toBeUndefined();
+    expect(service.findAll()).toEqual([{ id: 'p2', name: 'Wireless Mouse' }]);
+  });
+
+  it('should reject deleting an unknown product', () => {
+    expect(() => service.deleteProduct('missing')).toThrow(NotFoundException);
+    expect(service.findAll()).toHaveLength(2);
+  });
+
   it('should update product', () => {
     expect(service.patchProduct('Laptop', 'p1')).toEqual({
       id: 'p1',
