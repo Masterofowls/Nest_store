@@ -5,6 +5,9 @@ import { ProductsModule } from './products/products.module';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnvironment } from './config/env.schema';
 import { DbModule } from './db/db.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { SellersModule } from './sellers/sellers.module';
 
 @Module({
   imports: [
@@ -16,6 +19,9 @@ import { DbModule } from './db/db.module';
     }),
     ProductsModule,
     DbModule,
+    AuthModule,
+    UsersModule,
+    SellersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,112 +1,158 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { ExecutionContext } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import request from 'supertest';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { SessionGuard } from '../auth/guards/session/session.guard';
+import { WriteOriginGuard } from '../auth/guards/write-origin.guard';
+import { SellerGuard } from '../sellers/seller.guard';
+import type { SellerRequest } from '../sellers/seller-request';
+import { productFixture, sellerFixture } from '../../test/marketplace.fixtures';
 
-describe('ProductsController', () => {
-  let controller: ProductsController;
+describe('ProductsController input and service mapping', () => {
+  let app: NestExpressApplication;
+  const service = {
+    findAll: jest.fn(),
+    getOrThrow: jest.fn(),
+    postProduct: jest.fn(),
+    patchProduct: jest.fn(),
+    deleteProduct: jest.fn(),
+  };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    jest.resetAllMocks();
+    service.findAll.mockResolvedValue([productFixture]);
+    service.getOrThrow.mockResolvedValue(productFixture);
+    service.postProduct.mockResolvedValue(productFixture);
+    service.patchProduct.mockResolvedValue(productFixture);
+    service.deleteProduct.mockResolvedValue(undefined);
+    const module = await Test.createTestingModule({
       controllers: [ProductsController],
-      providers: [ProductsService],
-    }).compile();
-
-    controller = module.get<ProductsController>(ProductsController);
+      providers: [{ provide: ProductsService, useValue: service }],
+    })
+      .overrideGuard(SessionGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(WriteOriginGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(SellerGuard)
+      .useValue({
+        canActivate(context: ExecutionContext) {
+          context.switchToHttp().getRequest<SellerRequest>().sellerProfile =
+            sellerFixture;
+          return true;
+        },
+      })
+      .compile();
+    app = module.createNestApplication<NestExpressApplication>();
+    await app.init();
   });
 
-  it('should return the products', () => {
-    expect(controller.findAll()).toEqual([
-      { id: 'p1', name: 'Mechanical Keyboard' },
-      { id: 'p2', name: 'Wireless Mouse' },
-    ]);
+  afterEach(async () => {
+    await app.close();
   });
 
-  it('should return one product', () => {
-    expect(controller.findOne('p1')).toEqual({
-      id: 'p1',
-      name: 'Mechanical Keyboard',
+  it('parses pagination and filters before calling the service', async () => {
+    await request(app.getHttpServer())
+      .get(
+        `/products?search=KEY&page=2&limit=1&categoryId=${productFixture.categoryId}`,
+      )
+      .expect(200)
+      .expect([productFixture]);
+    expect(service.findAll).toHaveBeenCalledWith({
+      search: 'KEY',
+      page: 2,
+      limit: 1,
+      categoryId: productFixture.categoryId,
     });
   });
 
-  it('should trim and store a created product', () => {
-    const product = controller.postProduct('  USB-C Hub  ');
-
-    expect(product.name).toBe('USB-C Hub');
-    expect(controller.findOne(product.id)).toEqual(product);
+  it('reads a UUID product', async () => {
+    await request(app.getHttpServer())
+      .get(`/products/${productFixture.id}`)
+      .expect(200)
+      .expect(productFixture);
+    expect(service.getOrThrow).toHaveBeenCalledWith(productFixture.id);
   });
 
-  it('should reject a missing name', () => {
-    expect(() => controller.postProduct(undefined)).toThrow(
-      BadRequestException,
+  it('creates a validated product with server-derived seller and Location', async () => {
+    await request(app.getHttpServer())
+      .post('/products')
+      .send({
+        name: '  Keyboard  ',
+        categoryId: productFixture.categoryId,
+        stockQuantity: 0,
+        price: '0',
+      })
+      .expect(201)
+      .expect('Location', `/products/${productFixture.id}`);
+    expect(service.postProduct).toHaveBeenCalledWith(
+      {
+        name: 'Keyboard',
+        categoryId: productFixture.categoryId,
+        stockQuantity: 0,
+        price: '0',
+      },
+      sellerFixture.id,
     );
   });
 
-  it('should reject a numeric name', () => {
-    expect(() => controller.postProduct(42)).toThrow(BadRequestException);
+  it.each([
+    {},
+    { name: 42 },
+    { name: '' },
+    { name: ' ' },
+    { sellerId: sellerFixture.id },
+  ])('rejects an invalid or empty update %j', async (body) => {
+    await request(app.getHttpServer())
+      .patch(`/products/${productFixture.id}`)
+      .send(body)
+      .expect(400);
+    expect(service.patchProduct).not.toHaveBeenCalled();
   });
 
-  it('should reject an empty name', () => {
-    expect(() => controller.postProduct('')).toThrow(BadRequestException);
-  });
-
-  it('should reject a whitespace-only name', () => {
-    expect(() => controller.postProduct('   ')).toThrow(BadRequestException);
-  });
-
-  it('should throw error for unknown id', () => {
-    expect(() => controller.findOne('missing')).toThrow(NotFoundException);
-  });
-
-  it('should patch product', () => {
-    expect(controller.patchProduct('p1', '  Compact Keyboard  ')).toEqual({
-      id: 'p1',
-      name: 'Compact Keyboard',
-    });
-    expect(controller.findOne('p1')).toEqual({
-      id: 'p1',
-      name: 'Compact Keyboard',
-    });
-  });
-
-  it('should reject patching an unknown product', () => {
-    expect(() => controller.patchProduct('missing', 'Keyboard')).toThrow(
-      NotFoundException,
+  it('preserves null and zero in partial updates', async () => {
+    await request(app.getHttpServer())
+      .patch(`/products/${productFixture.id}`)
+      .send({ description: null, stockQuantity: 0 })
+      .expect(200);
+    expect(service.patchProduct).toHaveBeenCalledWith(
+      { description: null, stockQuantity: 0 },
+      productFixture.id,
+      sellerFixture.id,
     );
   });
 
-  it('should reject a missing update name', () => {
-    expect(() => controller.patchProduct('p1', undefined)).toThrow(
-      BadRequestException,
+  it('deletes with the server-derived seller and returns no body', async () => {
+    const response = await request(app.getHttpServer())
+      .delete(`/products/${productFixture.id}`)
+      .expect(204);
+    expect(response.text).toBe('');
+    expect(service.deleteProduct).toHaveBeenCalledWith(
+      productFixture.id,
+      sellerFixture.id,
     );
   });
 
-  it('should reject a numeric update name', () => {
-    expect(() => controller.patchProduct('p1', 42)).toThrow(
-      BadRequestException,
-    );
+  it.each([
+    'page=0',
+    'page=abc',
+    'page=1.5',
+    'page=-1',
+    'limit=0',
+    'limit=-1',
+    'limit=abc',
+    'limit=101',
+    'categoryId=bad',
+    'sellerId=bad',
+    'search=a&search=b',
+  ])('rejects invalid query %s', async (query) => {
+    await request(app.getHttpServer()).get(`/products?${query}`).expect(400);
+    expect(service.findAll).not.toHaveBeenCalled();
   });
 
-  it('should reject an empty update name', () => {
-    expect(() => controller.patchProduct('p1', '')).toThrow(
-      BadRequestException,
-    );
-  });
-
-  it('should reject a whitespace-only update name', () => {
-    expect(() => controller.patchProduct('p1', '   ')).toThrow(
-      BadRequestException,
-    );
-  });
-
-  it('should delete product', () => {
-    controller.deleteProduct('p1');
-    expect(() => controller.findOne('p1')).toThrow(NotFoundException);
-  });
-
-  it('should reject deleting an unknown product', () => {
-    expect(() => controller.deleteProduct('missing')).toThrow(
-      NotFoundException,
-    );
+  it('rejects non-UUID IDs', async () => {
+    await request(app.getHttpServer()).get('/products/p1').expect(400);
+    expect(service.getOrThrow).not.toHaveBeenCalled();
   });
 });

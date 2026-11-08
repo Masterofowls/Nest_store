@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import { paginationFields } from '../common/pagination.schema';
+
+export const productQuerySchema = z.strictObject({
+  ...paginationFields,
+  categoryId: z.uuid().optional(),
+  sellerId: z.uuid().optional(),
+});
+export type ProductQuery = z.infer<typeof productQuerySchema>;
 
 export const createProductSchema = z.strictObject({
   name: z.string().trim().min(1).max(200),

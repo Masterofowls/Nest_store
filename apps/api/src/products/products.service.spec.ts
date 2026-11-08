@@ -1,144 +1,173 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { and, eq } from 'drizzle-orm';
 import { ProductsService } from './products.service';
-import { NotFoundException } from '@nestjs/common';
+import { DatabaseService } from '../db/database/database.service';
+import { products } from '../db/schema';
+import type { Product } from '../db/schema';
+import { queryMock } from '../../test/query.mock';
 
-describe('ProductsService', () => {
+const product: Product = {
+  id: '00000000-0000-4000-8000-000000000001',
+  name: 'Keyboard',
+  sellerId: '00000000-0000-4000-8000-000000000002',
+  categoryId: '00000000-0000-4000-8000-000000000003',
+  price: '10.00',
+  stockQuantity: 2,
+  discountPercent: 0,
+  description: null,
+};
+
+describe('ProductsService database operations', () => {
   let service: ProductsService;
+  let select: ReturnType<typeof queryMock<Product>>;
+  let mutation: ReturnType<typeof queryMock<Product>>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [ProductsService],
+    select = queryMock([product]);
+    mutation = queryMock([product]);
+    const module = await Test.createTestingModule({
+      providers: [
+        ProductsService,
+        {
+          provide: DatabaseService,
+          useValue: {
+            db: {
+              select: () => select,
+              insert: () => mutation,
+              update: () => mutation,
+              delete: () => mutation,
+            },
+          },
+        },
+      ],
     }).compile();
-
-    service = module.get<ProductsService>(ProductsService);
+    service = module.get(ProductsService);
   });
 
-  it('should return all products', () => {
-    expect(service.findAll()).toEqual([
-      { id: 'p1', name: 'Mechanical Keyboard' },
-      { id: 'p2', name: 'Wireless Mouse' },
+  it('bounds and orders the list query', async () => {
+    await expect(service.findAll({ page: 2, limit: 3 })).resolves.toEqual([
+      product,
     ]);
+    expect(select.limit).toHaveBeenCalledWith(3);
+    expect(select.offset).toHaveBeenCalledWith(3);
+    expect(select.orderBy).toHaveBeenCalledTimes(1);
   });
 
-  it('should return only p1', () => {
-    expect(service.findAll(undefined, 1, 1)).toEqual([
-      { id: 'p1', name: 'Mechanical Keyboard' },
-    ]);
+  it('returns an existing product', async () => {
+    await expect(service.getOrThrow(product.id)).resolves.toEqual(product);
   });
 
-  it('should return only p2', () => {
-    expect(service.findAll(undefined, 2, 1)).toEqual([
-      { id: 'p2', name: 'Wireless Mouse' },
-    ]);
-  });
-
-  it('should return empty', () => {
-    expect(service.findAll(undefined, 3, 1)).toEqual([]);
-  });
-
-  it('should return only p2', () => {
-    expect(service.findAll('mouse', 1, 1)).toEqual([
-      { id: 'p2', name: 'Wireless Mouse' },
-    ]);
-  });
-
-  it('should return partial search', () => {
-    expect(service.findAll('key')).toEqual([
-      { id: 'p1', name: 'Mechanical Keyboard' },
-    ]);
-  });
-
-  it('should return case insensitive search', () => {
-    expect(service.findAll('MOUSE')).toEqual([
-      { id: 'p2', name: 'Wireless Mouse' },
-    ]);
-  });
-
-  it('should return no-match search', () => {
-    expect(service.findAll('Monitor')).toEqual([]);
-  });
-
-  it('should return a product by id', () => {
-    expect(service.findOne('p1')).toEqual({
-      id: 'p1',
-      name: 'Mechanical Keyboard',
-    });
-  });
-
-  it('should return undefined when product is not found', () => {
-    expect(service.findOne('missing')).toEqual(undefined);
-  });
-
-  it('should create a product with a generated ID', () => {
-    const product = service.postProduct('USB-C Hub');
-
-    expect(product).toMatchObject({ name: 'USB-C Hub' });
-    expect(product.id).toEqual(expect.any(String));
-    expect(product.id).not.toBe('');
-  });
-
-  it('should create a product with and find it', () => {
-    const product = service.postProduct('HDMI cable');
-
-    expect(product).toMatchObject({ name: 'HDMI cable' });
-    expect(product.id).toEqual(expect.any(String));
-    expect(product.id).not.toBe('');
-    expect(service.findOne(product.id)).toEqual({
-      id: product.id,
-      name: 'HDMI cable',
-    });
-  });
-
-  it('should create two products and check their distinct ids', () => {
-    const product1 = service.postProduct('Laptop');
-    const product2 = service.postProduct('Phone');
-
-    expect(product1).toMatchObject({ name: 'Laptop' });
-    expect(product1.id).toEqual(expect.any(String));
-    expect(product1.id).not.toBe('');
-    expect(product2).toMatchObject({ name: 'Phone' });
-    expect(product2.id).toEqual(expect.any(String));
-    expect(product2.id).not.toBe('');
-    expect(product1.id).not.toBe(product2.id);
-  });
-
-  it('should return product', () => {
-    expect(service.getOrThrow('p1')).toEqual({
-      id: 'p1',
-      name: 'Mechanical Keyboard',
-    });
-  });
-
-  it('should delete product', () => {
-    service.deleteProduct('p1');
-    expect(service.findOne('p1')).toBeUndefined();
-    expect(service.findAll()).toEqual([{ id: 'p2', name: 'Wireless Mouse' }]);
-  });
-
-  it('should reject deleting an unknown product', () => {
-    expect(() => service.deleteProduct('missing')).toThrow(NotFoundException);
-    expect(service.findAll()).toHaveLength(2);
-  });
-
-  it('should update product', () => {
-    expect(service.patchProduct('Laptop', 'p1')).toEqual({
-      id: 'p1',
-      name: 'Laptop',
-    });
-    expect(service.findOne('p1')).toEqual({
-      id: 'p1',
-      name: 'Laptop',
-    });
-    expect(service.findAll()).toHaveLength(2);
-  });
-
-  it('should reject updating an unknown product', () => {
-    expect(() => service.patchProduct('Laptop', 'missing')).toThrow(
+  it('rejects an unknown product', async () => {
+    select.where.mockReturnValue(Promise.resolve([]));
+    await expect(service.getOrThrow(product.id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
-  it('should throw NotFound Exception when product is not found', () => {
-    expect(() => service.getOrThrow('some')).toThrow(NotFoundException);
+  it('derives seller ownership separately from the allowed create input', async () => {
+    const input = {
+      name: product.name,
+      categoryId: product.categoryId,
+      price: product.price,
+      stockQuantity: product.stockQuantity,
+    };
+    await expect(service.postProduct(input, product.sellerId)).resolves.toEqual(
+      product,
+    );
+    expect(mutation.values).toHaveBeenCalledWith({
+      ...input,
+      sellerId: product.sellerId,
+      description: undefined,
+      discountPercent: undefined,
+    });
+  });
+
+  it('includes ownership in the update predicate', async () => {
+    await expect(
+      service.patchProduct({ stockQuantity: 0 }, product.id, product.sellerId),
+    ).resolves.toEqual(product);
+    const dialect = new PgDialect();
+    expect(mutation.where).toHaveBeenCalledTimes(1);
+    const condition = mutation.where.mock.calls[0][0];
+    const expected = and(
+      eq(products.id, product.id),
+      eq(products.sellerId, product.sellerId),
+    );
+    if (!condition || !expected) {
+      throw new Error('Ownership predicate is missing');
+    }
+    expect(dialect.sqlToQuery(condition)).toEqual(dialect.sqlToQuery(expected));
+  });
+
+  it.each(['update', 'delete'])(
+    'rejects %s by another seller',
+    async (operation) => {
+      mutation.returning.mockResolvedValue([]);
+      const result =
+        operation === 'update'
+          ? service.patchProduct(
+              { name: 'Changed' },
+              product.id,
+              'other-seller',
+            )
+          : service.deleteProduct(product.id, 'other-seller');
+      await expect(result).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
+  it.each(['update', 'delete'])(
+    'returns 404 for a missing product on %s',
+    async (operation) => {
+      mutation.returning.mockResolvedValue([]);
+      select.where.mockReturnValue(Promise.resolve([]));
+      const result =
+        operation === 'update'
+          ? service.patchProduct(
+              { name: 'Changed' },
+              product.id,
+              product.sellerId,
+            )
+          : service.deleteProduct(product.id, product.sellerId);
+      await expect(result).rejects.toBeInstanceOf(NotFoundException);
+    },
+  );
+
+  it('deletes an owned product', async () => {
+    await expect(
+      service.deleteProduct(product.id, product.sellerId),
+    ).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ['products_category_id_categories_id_fk', BadRequestException],
+    ['products_seller_id_seller_profiles_id_fk', ForbiddenException],
+  ])('maps the %s foreign key error', async (constraint, exception) => {
+    mutation.returning.mockRejectedValue({
+      cause: { code: '23503', constraint_name: constraint },
+    });
+    await expect(
+      service.postProduct(product, product.sellerId),
+    ).rejects.toBeInstanceOf(exception);
+  });
+
+  it('propagates unexpected database failures', async () => {
+    const error = new Error('Database unavailable');
+    mutation.returning.mockRejectedValue(error);
+    await expect(service.postProduct(product, product.sellerId)).rejects.toBe(
+      error,
+    );
+  });
+
+  it('fails explicitly when an insert returns no row', async () => {
+    mutation.returning.mockResolvedValue([]);
+    await expect(
+      service.postProduct(product, product.sellerId),
+    ).rejects.toThrow('Product insert did not return a product');
   });
 });

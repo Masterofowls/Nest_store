@@ -1,4 +1,1 @@
-export interface Product {
-  id: string;
-  name: string;
-}
+export type { Product } from '../db/schema';

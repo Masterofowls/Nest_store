@@ -1,10 +1,8 @@
 import {
-  BadRequestException,
   Controller,
-  DefaultValuePipe,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Query,
   Post,
   Body,
@@ -12,8 +10,28 @@ import {
   Delete,
   HttpStatus,
   HttpCode,
+  Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import type { Response } from 'express';
+import { SessionGuard } from '../auth/guards/session/session.guard';
+import { WriteOriginGuard } from '../auth/guards/write-origin.guard';
+import { SellerGuard } from '../sellers/seller.guard';
+import type { SellerRequest } from '../sellers/seller-request';
+import { requestSellerId } from '../sellers/seller-request';
+import { ZodValidationPipe } from '../common/pipes/zod-validation/zod-validation.pipe';
+import {
+  createProductSchema,
+  productQuerySchema,
+  updateProductSchema,
+} from './product.schema';
+import type {
+  CreateProductInput,
+  ProductQuery,
+  UpdateProductInput,
+} from './product.schema';
 
 @Controller('products')
 export class ProductsController {
@@ -21,40 +39,51 @@ export class ProductsController {
 
   @Get()
   findAll(
-    @Query('search') search?: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+    @Query(new ZodValidationPipe(productQuerySchema)) query: ProductQuery,
   ) {
-    if (page < 1 || limit < 1) {
-      throw new BadRequestException('Page and limit must be positive integers');
-    } else {
-      return this.productsService.findAll(search, page, limit);
-    }
+    return this.productsService.findAll(query);
   }
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.productsService.getOrThrow(id);
   }
 
   @Post()
-  postProduct(@Body('name') name: unknown) {
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      throw new BadRequestException('Name must be a non-empty string');
-    }
-    return this.productsService.postProduct(name.trim());
+  @UseGuards(SessionGuard, WriteOriginGuard, SellerGuard)
+  async postProduct(
+    @Body(new ZodValidationPipe(createProductSchema)) input: CreateProductInput,
+    @Req() request: SellerRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const product = await this.productsService.postProduct(
+      input,
+      requestSellerId(request),
+    );
+    response.location(`/products/${product.id}`);
+    return product;
   }
 
   @Patch(':id')
-  patchProduct(@Param('id') id: string, @Body('name') name: unknown) {
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      throw new BadRequestException('Name must be a non-empty string');
-    }
-    return this.productsService.patchProduct(name.trim(), id);
+  @UseGuards(SessionGuard, WriteOriginGuard, SellerGuard)
+  patchProduct(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(updateProductSchema)) input: UpdateProductInput,
+    @Req() request: SellerRequest,
+  ) {
+    return this.productsService.patchProduct(
+      input,
+      id,
+      requestSellerId(request),
+    );
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
-  deleteProduct(@Param('id') id: string): void {
-    return this.productsService.deleteProduct(id);
+  @UseGuards(SessionGuard, WriteOriginGuard, SellerGuard)
+  deleteProduct(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: SellerRequest,
+  ) {
+    return this.productsService.deleteProduct(id, requestSellerId(request));
   }
 }

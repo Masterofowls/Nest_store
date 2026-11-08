@@ -6,7 +6,7 @@ import * as schema from '../schema';
 import type { Environment } from '../../config/env.schema';
 
 @Injectable()
-export class DatabaseService {
+export class DatabaseService implements OnModuleDestroy {
   private readonly client: ReturnType<typeof postgres>;
   readonly db: ReturnType<typeof drizzle<typeof schema>>;
 
