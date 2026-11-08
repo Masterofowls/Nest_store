@@ -1,4 +1,3 @@
-
 ### Monorepo commands
 
 Run these commands from the repository root:
@@ -23,7 +22,7 @@ type-checking, and build. It stops on the first failure. Formatting edits files;
 tests and the non-mutating format check remain separate commands.
 
 The development server listens on http://localhost:3000 by default.
-Stop it with Ctrl+C.
+
 
 ### Database schema
 
@@ -139,18 +138,18 @@ Any signed-in user can create one seller profile and continue shopping as a
 buyer. Store names are unique. Public seller responses contain `id`, `storeName`,
 `description`, `createdAt`, and `updatedAt`, without the auth user ID.
 
-| Method | Route | Access |
-| --- | --- | --- |
-| GET | `/sellers` | Public; `search`, `page`, `limit` |
-| GET | `/sellers/:id` | Public; UUID seller ID |
-| GET | `/sellers/me` | Signed in; own profile |
-| POST | `/sellers` | Signed in; create own profile |
-| PATCH | `/sellers/me` | Signed in; update own profile |
-| DELETE | `/sellers/me` | Signed in; delete own profile and its products |
-| GET | `/products` | Public; `search`, `categoryId`, `sellerId`, `page`, `limit` |
-| GET | `/products/:id` | Public; UUID product ID |
-| POST | `/products` | Signed-in seller |
-| PATCH/DELETE | `/products/:id` | Product's owning seller |
+| Method       | Route             | Access                                                                |
+| ------------ | ----------------- | --------------------------------------------------------------------- |
+| GET          | `/sellers`      | Public; `search`, `page`, `limit`                               |
+| GET          | `/sellers/:id`  | Public; UUID seller ID                                                |
+| GET          | `/sellers/me`   | Signed in; own profile                                                |
+| POST         | `/sellers`      | Signed in; create own profile                                         |
+| PATCH        | `/sellers/me`   | Signed in; update own profile                                         |
+| DELETE       | `/sellers/me`   | Signed in; delete own profile and its products                        |
+| GET          | `/products`     | Public; `search`, `categoryId`, `sellerId`, `page`, `limit` |
+| GET          | `/products/:id` | Public; UUID product ID                                               |
+| POST         | `/products`     | Signed-in seller                                                      |
+| PATCH/DELETE | `/products/:id` | Product's owning seller                                               |
 
 Seller creation requires a trimmed `storeName` (1–200 characters); `description`
 is optional, nullable, and limited to 5,000 characters. PATCH accepts at least
@@ -181,13 +180,13 @@ product returns 403. Malformed IDs/bodies/queries or unknown categories return
 
 ### Category API
 
-| Method | Route | Access |
-| --- | --- | --- |
-| GET | `/categories` | Public; `search`, `page`, `limit` |
-| GET | `/categories/:id` | Public; UUID category ID |
-| POST | `/categories` | Admin |
-| PATCH | `/categories/:id` | Admin |
-| DELETE | `/categories/:id` | Admin |
+| Method | Route               | Access                                  |
+| ------ | ------------------- | --------------------------------------- |
+| GET    | `/categories`     | Public; `search`, `page`, `limit` |
+| GET    | `/categories/:id` | Public; UUID category ID                |
+| POST   | `/categories`     | Admin                                   |
+| PATCH  | `/categories/:id` | Admin                                   |
+| DELETE | `/categories/:id` | Admin                                   |
 
 Create and update accept only `{ "name": "Keyboards" }`; names are trimmed,
 required, limited to 200 characters, and unique (case-sensitive). Responses
@@ -203,12 +202,12 @@ The existing category table is reused without a new migration.
 
 ### Product images and storage
 
-| Method | Route | Access |
-| --- | --- | --- |
-| GET | `/products/:productId/images` | Public; ready images only |
-| POST | `/products/:productId/images` | Product's owning seller; multipart `file` |
-| DELETE | `/products/:productId/images/:imageId` | Product's owning seller |
-| POST | `/product-images/cleanup` | Admin; retry queued object removal |
+| Method | Route                                    | Access                                      |
+| ------ | ---------------------------------------- | ------------------------------------------- |
+| GET    | `/products/:productId/images`          | Public; ready images only                   |
+| POST   | `/products/:productId/images`          | Product's owning seller; multipart `file` |
+| DELETE | `/products/:productId/images/:imageId` | Product's owning seller                     |
+| POST   | `/product-images/cleanup`              | Admin; retry queued object removal          |
 
 Images are limited to eight per product and 5 MiB per upload. The server decodes
 JPEG/PNG/WebP content instead of trusting the filename or MIME label, rejects
@@ -233,16 +232,16 @@ may return 503 after metadata has been removed; retry through the cleanup route.
 
 ### Cart and orders without payment
 
-| Method | Route | Access |
-| --- | --- | --- |
-| GET | `/cart` | Own cart |
-| POST | `/cart/items` | Signed in; `{productId, quantity}` |
-| PATCH | `/cart/items/:id` | Own item; `{quantity}` |
-| DELETE | `/cart/items/:id` | Own item |
-| GET | `/orders` | Own orders; `page`, `limit` |
-| POST | `/orders` | Own cart; UUID `Idempotency-Key` header |
-| GET | `/orders/:id` | Own order with snapshot items |
-| PATCH | `/orders/:id` | Own order; `{status:"cancelled"}` |
+| Method | Route               | Access                                    |
+| ------ | ------------------- | ----------------------------------------- |
+| GET    | `/cart`           | Own cart                                  |
+| POST   | `/cart/items`     | Signed in; `{productId, quantity}`      |
+| PATCH  | `/cart/items/:id` | Own item; `{quantity}`                  |
+| DELETE | `/cart/items/:id` | Own item                                  |
+| GET    | `/orders`         | Own orders; `page`, `limit`           |
+| POST   | `/orders`         | Own cart; UUID `Idempotency-Key` header |
+| GET    | `/orders/:id`     | Own order with snapshot items             |
+| PATCH  | `/orders/:id`     | Own order; `{status:"cancelled"}`       |
 
 Quantities are integers from 1 to 999 and must fit current stock. Checkout takes
 prices and discounts from the database, calculates in integer cents, locks
@@ -255,17 +254,17 @@ order paid or fulfilled.
 
 ### Favourites, ratings, account and recommendations
 
-| Method | Route | Access |
-| --- | --- | --- |
-| GET/POST | `/favourites` | Own list; create with `{productId}` |
-| DELETE | `/favourites/:id` | Own saved item |
-| GET/POST | `/ratings` | Own list; create with `{productId, score, comment?}` |
-| PATCH/DELETE | `/ratings/:id` | Own rating |
-| GET | `/products/:id/ratings` | Public |
-| GET/PATCH/DELETE | `/users/me` | Own account |
-| POST | `/products/:id/views` | Signed in; record own view |
-| GET | `/users/me/views` | Own history |
-| GET | `/products/:id/recommendations` | Public |
+| Method           | Route                             | Access                                                 |
+| ---------------- | --------------------------------- | ------------------------------------------------------ |
+| GET/POST         | `/favourites`                   | Own list; create with `{productId}`                  |
+| DELETE           | `/favourites/:id`               | Own saved item                                         |
+| GET/POST         | `/ratings`                      | Own list; create with `{productId, score, comment?}` |
+| PATCH/DELETE     | `/ratings/:id`                  | Own rating                                             |
+| GET              | `/products/:id/ratings`         | Public                                                 |
+| GET/PATCH/DELETE | `/users/me`                     | Own account                                            |
+| POST             | `/products/:id/views`           | Signed in; record own view                             |
+| GET              | `/users/me/views`               | Own history                                            |
+| GET              | `/products/:id/recommendations` | Public                                                 |
 
 Scores are integers from 1 to 5; comments are optional/nullable, at most 2,000
 characters. Each user can rate a product once. Account updates accept only

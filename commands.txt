@@ -1,5 +1,0 @@
-npm exec --workspace apps/api -- nest generate module products
-npm exec --workspace apps/api -- nest generate service products
-npm exec --workspace apps/api -- nest generate controller products
-
- npm test products.service.spec.ts  --runInBand  
