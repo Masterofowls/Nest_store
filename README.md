@@ -27,6 +27,15 @@ Stop it with Ctrl+C.
 
 ### Database schema
 
+Check the PostgreSQL connection using `DATABASE_URL` from `apps/api/.env`:
+
+```powershell
+.\scripts\check-db.ps1
+```
+
+The script runs `select 1`, closes the connection, and exits nonzero on failure.
+It does not print credentials or apply migrations.
+
 Generate migrations without connecting to a database:
 
 ```powershell
