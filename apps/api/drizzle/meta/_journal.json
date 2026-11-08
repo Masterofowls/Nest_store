@@ -22,6 +22,27 @@
       "when": 1794037181104,
       "tag": "0002_conscious_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794165190646,
+      "tag": "0003_admin_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794166083868,
+      "tag": "0004_images_order_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794166816261,
+      "tag": "0005_storage_cleanup_schedule",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,11 @@ describe('AuthService tests', () => {
       const service = new AuthService(config, database);
       expect(typeof service.auth.handler).toBe('function');
       expect(service.auth.options.emailAndPassword?.enabled).toBe(true);
+      expect(service.auth.options.user?.additionalFields.isAdmin).toEqual({
+        type: 'boolean',
+        defaultValue: false,
+        input: false,
+      });
       expect(service.auth.options.baseURL).toBe('http://localhost:3000');
       expect(service.auth.options.secret).toBe(
         'fake-test-secret-with-at-least-thirty-two-characters',

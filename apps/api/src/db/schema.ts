@@ -5,6 +5,7 @@ import {
   index,
   integer,
   numeric,
+  primaryKey,
   pgTable,
   text,
   timestamp,
@@ -17,6 +18,7 @@ export const user = pgTable('user', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
+  isAdmin: boolean('is_admin').default(false).notNull(),
   image: text('image'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')
@@ -172,6 +174,45 @@ export const carts = pgTable(
   (table) => [uniqueIndex('carts_user_id_unique').on(table.userId)],
 );
 
+export const productImages = pgTable(
+  'product_images',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    bucket: text('bucket').notNull(),
+    path: text('path').notNull().unique(),
+    url: text('url').notNull(),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('product_images_product_id_idx').on(table.productId),
+    check(
+      'product_images_status_check',
+      sql`${table.status} IN ('pending', 'ready')`,
+    ),
+  ],
+).enableRLS();
+
+export const storageCleanup = pgTable(
+  'storage_cleanup',
+  {
+    bucket: text('bucket').notNull(),
+    path: text('path').notNull(),
+    notBefore: timestamp('not_before', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bucket, table.path] })],
+).enableRLS();
+
 export const cartItems = pgTable(
   'cart_items',
   {
@@ -205,6 +246,7 @@ export const orders = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     status: text('status').notNull().default('pending'),
+    checkoutKey: text('checkout_key'),
     totalAmount: numeric('total_amount', { precision: 10, scale: 2 }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -213,7 +255,13 @@ export const orders = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index('orders_user_id_idx').on(table.userId)],
+  (table) => [
+    index('orders_user_id_idx').on(table.userId),
+    uniqueIndex('orders_user_checkout_key_unique').on(
+      table.userId,
+      table.checkoutKey,
+    ),
+  ],
 );
 
 export const orderItems = pgTable(

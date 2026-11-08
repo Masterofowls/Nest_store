@@ -8,6 +8,14 @@ import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SellersModule } from './sellers/sellers.module';
+import { CategoriesModule } from './categories/categories.module';
+import { ImagesModule } from './images/images.module';
+import { CartModule } from './cart/cart.module';
+import { OrdersModule } from './orders/orders.module';
+import { FavouritesModule } from './favourites/favourites.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { ViewsModule } from './views/views.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -22,6 +30,14 @@ import { SellersModule } from './sellers/sellers.module';
     AuthModule,
     UsersModule,
     SellersModule,
+    CategoriesModule,
+    ImagesModule,
+    CartModule,
+    OrdersModule,
+    FavouritesModule,
+    RatingsModule,
+    ViewsModule,
+    RecommendationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

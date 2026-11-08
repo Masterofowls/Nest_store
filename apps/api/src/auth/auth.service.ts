@@ -29,6 +29,15 @@ export class AuthService {
       secret: config.getOrThrow('BETTER_AUTH_SECRET', { infer: true }),
       baseURL: config.getOrThrow('BETTER_AUTH_URL', { infer: true }),
       emailAndPassword: { enabled: true },
+      user: {
+        additionalFields: {
+          isAdmin: {
+            type: 'boolean',
+            defaultValue: false,
+            input: false,
+          },
+        },
+      },
     });
   }
 }

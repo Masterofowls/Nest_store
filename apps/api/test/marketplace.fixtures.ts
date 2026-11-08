@@ -29,6 +29,7 @@ export const sessionFixture: AuthSession = {
     name: 'Test buyer',
     email: 'buyer@example.test',
     emailVerified: false,
+    isAdmin: false,
     image: null,
     createdAt: date,
     updatedAt: date,

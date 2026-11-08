@@ -1,10 +1,7 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { testEnvSchema } from '../src/config/test-env.schema';
-import { user, session, account, verification } from '../src/db/schema';
 import { randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -16,7 +13,19 @@ import request from 'supertest';
 import { ProductsModule } from '../src/products/products.module';
 import { SellersModule } from '../src/sellers/sellers.module';
 import * as schema from '../src/db/schema';
-import type { Product } from '../src/db/schema';
+import type { Category, Product } from '../src/db/schema';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AuthModule } from '../src/auth/auth.module';
+import { DbModule } from '../src/db/db.module';
+import { AdminGuard } from '../src/auth/guards/admin.guard';
+import { SessionGuard } from '../src/auth/guards/session/session.guard';
+import type { Environment } from '../src/config/env.schema';
+import { CategoriesModule } from '../src/categories/categories.module';
+import { ImagesModule } from '../src/images/images.module';
+import { StorageService } from '../src/images/storage.service';
+import sharp from 'sharp';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 const result = testEnvSchema.safeParse(process.env);
 
@@ -31,19 +40,38 @@ const client = postgres(result.data.TEST_DATABASE_URL, {
   connect_timeout: 10,
   max: 1,
 });
-const authSchema = { user, session, account, verification };
 const db = drizzle(client, { schema });
-const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-  secret: 'fake-test-secret-with-at-least-thirty-two-characters',
-  baseURL: 'http://localhost:3000',
-  emailAndPassword: { enabled: true },
+const config = new ConfigService<Environment, true>({
+  DATABASE_URL: result.data.TEST_DATABASE_URL,
+  BETTER_AUTH_SECRET: 'fake-test-secret-with-at-least-thirty-two-characters',
+  BETTER_AUTH_URL: 'http://localhost:3000',
 });
+let auth: AuthService['auth'];
 const password = 'Integration-test-password-42!';
 let emails: string[] = [];
 let app: NestExpressApplication;
 let categoryIds: string[] = [];
+let categoryNames: string[] = [];
 let orderIds: string[] = [];
+const ownedImagePaths = new Set<string>();
+const storage = {
+  bucket: 'test-product-images',
+  publicUrl(path: string) {
+    ownedImagePaths.add(path);
+    return `https://storage.example.test/${path}`;
+  },
+  upload: jest.fn<Promise<void>, [string, Buffer]>(),
+  remove: jest.fn<Promise<void>, [string, string]>(),
+};
+
+@Controller('test/admin')
+class AdminProbeController {
+  @Get()
+  @UseGuards(SessionGuard, AdminGuard)
+  check() {
+    return { ok: true };
+  }
+}
 
 function testEmail(): string {
   const email = `auth-test-${randomUUID()}@example.test`;
@@ -129,6 +157,32 @@ async function createCategory(): Promise<string> {
   return id;
 }
 
+async function signedInAdmin() {
+  const buyer = await signedInBuyer();
+  await client`UPDATE "user" SET is_admin = true WHERE id = ${buyer.userId}`;
+  return buyer;
+}
+
+async function createApiCategory(
+  cookie: string,
+  name = `Test category ${randomUUID()}`,
+) {
+  categoryNames.push(name);
+  const response = await request(app.getHttpServer())
+    .post('/categories')
+    .set('Cookie', cookie)
+    .set('Origin', 'http://localhost:3000')
+    .send({ name });
+  if (response.status === 201) {
+    categoryIds.push(responseId(response));
+  }
+  expect(response.status).toBe(201);
+  const id = responseId(response);
+  expect(response.headers.location).toBe(`/categories/${id}`);
+  expect(response.body).toEqual({ id, name: name.trim() });
+  return { id, name: name.trim() };
+}
+
 async function createSeller(cookie: string) {
   const storeName = `Test electronics ${randomUUID()}`;
   const response = await request(app.getHttpServer())
@@ -146,25 +200,48 @@ async function createSeller(cookie: string) {
 
 beforeAll(async () => {
   const moduleFixture = await Test.createTestingModule({
-    imports: [UsersModule, SellersModule, ProductsModule],
+    imports: [
+      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+      AuthModule,
+      DbModule,
+      UsersModule,
+      SellersModule,
+      ProductsModule,
+      CategoriesModule,
+      ImagesModule,
+    ],
+    controllers: [AdminProbeController],
   })
-    .overrideProvider(AuthService)
-    .useValue({ auth })
+    .overrideProvider(ConfigService)
+    .useValue(config)
     .overrideProvider(DatabaseService)
     .useValue({ db })
+    .overrideProvider(StorageService)
+    .useValue(storage)
     .compile();
 
   app = moduleFixture.createNestApplication<NestExpressApplication>({
     bodyParser: false,
   });
+  auth = app.get(AuthService).auth;
   configureApp(app);
-  await app.init();
+  await app.listen(0);
 });
 
 beforeEach(() => {
   emails = [];
   categoryIds = [];
+  categoryNames = [];
   orderIds = [];
+  storage.upload.mockReset().mockResolvedValue(undefined);
+  storage.remove.mockReset().mockImplementation((bucket, path) => {
+    if (bucket !== storage.bucket || !ownedImagePaths.has(path)) {
+      return Promise.reject(
+        new Error('Refusing to remove a storage object outside test fixtures'),
+      );
+    }
+    return Promise.resolve();
+  });
 });
 
 afterEach(async () => {
@@ -190,6 +267,12 @@ afterEach(async () => {
   for (const id of categoryIds) {
     await client`DELETE FROM categories WHERE id = ${id}`;
   }
+  for (const name of categoryNames) {
+    await client`DELETE FROM categories WHERE name = ${name}`;
+  }
+  for (const [path] of storage.upload.mock.calls) {
+    await client`DELETE FROM storage_cleanup WHERE bucket = ${storage.bucket} AND path = ${path}`;
+  }
 });
 
 afterAll(async () => {
@@ -201,6 +284,56 @@ afterAll(async () => {
 });
 
 describe('Better Auth local PostgreSQL integration', () => {
+  it('keeps signup and user updates from granting admin access', async () => {
+    const email = testEmail();
+    const signup = await request(app.getHttpServer())
+      .post('/api/auth/sign-up/email')
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: 'Integration buyer', email, password, isAdmin: true })
+      .expect(200);
+    const cookie = httpSessionCookie(signup);
+    expect(
+      await client`SELECT is_admin FROM "user" WHERE email = ${email}`,
+    ).toEqual([{ is_admin: false }]);
+    await request(app.getHttpServer())
+      .get('/test/admin')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/auth/update-user')
+      .set('Origin', 'http://localhost:3000')
+      .set('Cookie', cookie)
+      .send({ isAdmin: true })
+      .expect(400);
+    expect(
+      await client`SELECT is_admin FROM "user" WHERE email = ${email}`,
+    ).toEqual([{ is_admin: false }]);
+  });
+
+  it('requires a session and applies admin grants/revocation to the same cookie', async () => {
+    await request(app.getHttpServer()).get('/test/admin').expect(401);
+    const buyer = await signedInBuyer();
+    await request(app.getHttpServer())
+      .get('/test/admin')
+      .set('Cookie', buyer.cookie)
+      .expect(403);
+    await client`UPDATE "user" SET is_admin = true WHERE id = ${buyer.userId}`;
+    await request(app.getHttpServer())
+      .get('/test/admin')
+      .set('Cookie', buyer.cookie)
+      .expect(200)
+      .expect({ ok: true });
+    await client`UPDATE "user" SET is_admin = false WHERE id = ${buyer.userId}`;
+    await request(app.getHttpServer())
+      .get('/test/admin')
+      .set('Cookie', buyer.cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Cookie', buyer.cookie)
+      .expect(200);
+  });
+
   it('returns the public profile through Nest and rejects the cookie after sign-out', async () => {
     const email = testEmail();
     const signup = await request(app.getHttpServer())
@@ -839,5 +972,563 @@ describe('Seller profiles and owned products through Nest', () => {
       .set('Origin', 'http://localhost:3000')
       .expect(404);
     await createSeller(owner.cookie);
+  });
+});
+
+describe('Categories through Nest', () => {
+  it('lets admins create, rename and delete categories with public reads', async () => {
+    const admin = await signedInAdmin();
+    const category = await createApiCategory(
+      admin.cookie,
+      `  Keyboards ${randomUUID()}  `,
+    );
+    await request(app.getHttpServer())
+      .get(`/categories/${category.id}`)
+      .expect(200)
+      .expect(category);
+    const name = `Updated ${category.id}`;
+    await request(app.getHttpServer())
+      .patch(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: ` ${name} ` })
+      .expect(200)
+      .expect({ id: category.id, name });
+    await request(app.getHttpServer())
+      .get(`/categories/${category.id}`)
+      .expect(200)
+      .expect({ id: category.id, name });
+    const deleted = await request(app.getHttpServer())
+      .delete(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(204);
+    expect(deleted.text).toBe('');
+    await request(app.getHttpServer())
+      .get(`/categories/${category.id}`)
+      .expect(404);
+  });
+
+  describe('Product images through Nest with isolated storage', () => {
+    async function fixture() {
+      const owner = await signedInAdmin();
+      const seller = await createSeller(owner.cookie);
+      const categoryId = await createCategory();
+      const response = await request(app.getHttpServer())
+        .post('/products')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .send({
+          name: 'Image keyboard',
+          categoryId,
+          stockQuantity: 2,
+          price: '10.00',
+        })
+        .expect(201);
+      const productId = responseId(response);
+      const bytes = await sharp({
+        create: { width: 4, height: 3, channels: 3, background: 'red' },
+      })
+        .png()
+        .toBuffer();
+      return { owner, seller, productId, bytes };
+    }
+
+    it('uploads validated WebP, lists public metadata and cleans up deletion', async () => {
+      const { owner, productId, bytes } = await fixture();
+      const response = await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(201);
+      const imageId = responseId(response);
+      expect(storage.upload).toHaveBeenCalledTimes(1);
+      const [path, uploaded] = storage.upload.mock.calls[0];
+      expect(path).toBe(`${productId}/${imageId}.webp`);
+      expect((await sharp(uploaded).metadata()).format).toBe('webp');
+      const body: unknown = response.body;
+      expect(body).not.toHaveProperty('path');
+      expect(body).not.toHaveProperty('bucket');
+      await request(app.getHttpServer())
+        .get(`/products/${productId}/images`)
+        .expect(200)
+        .expect([response.body]);
+      await request(app.getHttpServer())
+        .delete(`/products/${productId}/images/${imageId}`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(204);
+      expect(storage.remove).toHaveBeenCalledWith(storage.bucket, path);
+      expect(
+        await client`SELECT path FROM storage_cleanup WHERE path = ${path}`,
+      ).toEqual([]);
+    });
+
+    it('rejects unauthenticated, foreign seller and invalid uploads before storage writes', async () => {
+      const { owner, productId, bytes } = await fixture();
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .attach('file', bytes, 'photo.png')
+        .expect(401);
+      const other = await signedInBuyer();
+      await createSeller(other.cookie);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', other.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(403);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(400);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .attach('file', bytes, 'photo.png')
+        .expect(403);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', Buffer.alloc(5 * 1024 * 1024 + 1), 'photo.png')
+        .expect(413);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', Buffer.from('not an image'), 'photo.png')
+        .expect(400);
+      expect(storage.upload).not.toHaveBeenCalled();
+    });
+
+    it('enforces the image count and denies foreign deletion', async () => {
+      const { owner, productId, bytes } = await fixture();
+      let imageId = '';
+      for (let count = 0; count < 7; count++) {
+        const image = await request(app.getHttpServer())
+          .post(`/products/${productId}/images`)
+          .set('Cookie', owner.cookie)
+          .set('Origin', 'http://localhost:3000')
+          .attach('file', bytes, 'photo.png')
+          .expect(201);
+        imageId = responseId(image);
+      }
+      const competing = await Promise.all(
+        [0, 1].map(() =>
+          request(app.getHttpServer())
+            .post(`/products/${productId}/images`)
+            .set('Cookie', owner.cookie)
+            .set('Origin', 'http://localhost:3000')
+            .attach('file', bytes, 'photo.png'),
+        ),
+      );
+      expect(competing.map((response) => response.status).sort()).toEqual([
+        201, 409,
+      ]);
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(409);
+      expect(storage.upload).toHaveBeenCalledTimes(8);
+      const other = await signedInBuyer();
+      await createSeller(other.cookie);
+      await request(app.getHttpServer())
+        .delete(`/products/${productId}/images/${imageId}`)
+        .set('Cookie', other.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(403);
+    });
+
+    it('retains failed cleanup for retry and queues cascade-deleted images', async () => {
+      const { owner, productId, bytes } = await fixture();
+      const response = await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(201);
+      const imageId = responseId(response);
+      const path = storage.upload.mock.calls[0][0];
+      storage.remove.mockRejectedValueOnce(
+        new ServiceUnavailableException('Product image cleanup failed'),
+      );
+      await request(app.getHttpServer())
+        .delete(`/products/${productId}/images/${imageId}`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(503);
+      expect(
+        await client`SELECT path FROM storage_cleanup WHERE path = ${path}`,
+      ).toEqual([{ path }]);
+      await request(app.getHttpServer())
+        .post('/product-images/cleanup')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(201)
+        .expect({ removed: 1 });
+      const second = await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(201);
+      expect(responseId(second)).not.toBe(imageId);
+      const secondPath = storage.upload.mock.calls[1][0];
+      await request(app.getHttpServer())
+        .delete('/sellers/me')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(204);
+      expect(
+        await client`SELECT path FROM storage_cleanup WHERE path = ${secondPath}`,
+      ).toEqual([{ path: secondPath }]);
+      await request(app.getHttpServer())
+        .post('/product-images/cleanup')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(201)
+        .expect({ removed: 1 });
+    });
+
+    it('does not publish an upload that fails in storage', async () => {
+      const { owner, productId, bytes } = await fixture();
+      storage.upload.mockRejectedValueOnce(
+        new ServiceUnavailableException('Product image upload failed'),
+      );
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(503);
+      await request(app.getHttpServer())
+        .get(`/products/${productId}/images`)
+        .expect(200)
+        .expect([]);
+      expect(storage.remove).not.toHaveBeenCalled();
+      const path = storage.upload.mock.calls[0][0];
+      expect(
+        await client`SELECT path FROM storage_cleanup WHERE path = ${path}`,
+      ).toEqual([{ path }]);
+      await client`UPDATE storage_cleanup SET not_before = now() - interval '1 minute' WHERE path = ${path}`;
+      await request(app.getHttpServer())
+        .post('/product-images/cleanup')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(201)
+        .expect({ removed: 1 });
+    });
+
+    it('keeps an in-flight cascade cleanup queued until the upload finishes', async () => {
+      const { owner, productId, bytes } = await fixture();
+      storage.upload.mockImplementationOnce(async () => {
+        await request(app.getHttpServer())
+          .delete(`/products/${productId}`)
+          .set('Cookie', owner.cookie)
+          .set('Origin', 'http://localhost:3000')
+          .expect(204);
+        await request(app.getHttpServer())
+          .post('/product-images/cleanup')
+          .set('Cookie', owner.cookie)
+          .set('Origin', 'http://localhost:3000')
+          .expect(201)
+          .expect({ removed: 0 });
+      });
+      await request(app.getHttpServer())
+        .post(`/products/${productId}/images`)
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, {
+          filename: 'mislabelled.svg',
+          contentType: 'image/svg+xml',
+        })
+        .expect(404);
+      const path = storage.upload.mock.calls[0][0];
+      expect(storage.remove).not.toHaveBeenCalled();
+      expect(
+        await client`SELECT path FROM storage_cleanup WHERE path = ${path}`,
+      ).toEqual([{ path }]);
+      await client`UPDATE storage_cleanup SET not_before = now() - interval '1 minute' WHERE path = ${path}`;
+      await request(app.getHttpServer())
+        .post('/product-images/cleanup')
+        .set('Cookie', owner.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(201)
+        .expect({ removed: 1 });
+    });
+  });
+
+  it('rejects anonymous and non-admin category writes, including signed-in sellers', async () => {
+    const id = await createCategory();
+    const [original] = await client<
+      { name: string }[]
+    >`SELECT name FROM categories WHERE id = ${id}`;
+    const buyer = await signedInBuyer();
+    await createSeller(buyer.cookie);
+    const name = `Unauthorized ${randomUUID()}`;
+    categoryNames.push(name);
+    await request(app.getHttpServer())
+      .post('/categories')
+      .send({ name })
+      .expect(401);
+    await request(app.getHttpServer())
+      .patch(`/categories/${id}`)
+      .send({ name })
+      .expect(401);
+    await request(app.getHttpServer()).delete(`/categories/${id}`).expect(401);
+    await request(app.getHttpServer())
+      .post('/categories')
+      .set('Cookie', buyer.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name })
+      .expect(403);
+    await request(app.getHttpServer())
+      .patch(`/categories/${id}`)
+      .set('Cookie', buyer.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`/categories/${id}`)
+      .set('Cookie', buyer.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(403);
+    expect(await client`SELECT name FROM categories WHERE id = ${id}`).toEqual([
+      original,
+    ]);
+    expect(
+      await client`SELECT id FROM categories WHERE name = ${name}`,
+    ).toEqual([]);
+  });
+
+  it('revokes category write access without replacing the cookie', async () => {
+    const admin = await signedInAdmin();
+    const category = await createApiCategory(admin.cookie);
+    await client`UPDATE "user" SET is_admin = false WHERE id = ${admin.userId}`;
+    await request(app.getHttpServer())
+      .patch(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: `Revoked ${category.id}` })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/categories/${category.id}`)
+      .expect(200)
+      .expect(category);
+  });
+
+  it.each([undefined, 'https://attacker.example'])(
+    'rejects category writes with origin %s',
+    async (origin) => {
+      const admin = await signedInAdmin();
+      const id = await createCategory();
+      const name = `Origin category ${randomUUID()}`;
+      categoryNames.push(name);
+      const create = request(app.getHttpServer())
+        .post('/categories')
+        .set('Cookie', admin.cookie);
+      if (origin) create.set('Origin', origin);
+      await create.send({ name }).expect(403);
+      const update = request(app.getHttpServer())
+        .patch(`/categories/${id}`)
+        .set('Cookie', admin.cookie);
+      if (origin) update.set('Origin', origin);
+      await update.send({ name }).expect(403);
+      const remove = request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Cookie', admin.cookie);
+      if (origin) remove.set('Origin', origin);
+      await remove.expect(403);
+      expect(
+        await client`SELECT id FROM categories WHERE id = ${id}`,
+      ).toHaveLength(1);
+      expect(
+        await client`SELECT id FROM categories WHERE name = ${name}`,
+      ).toEqual([]);
+    },
+  );
+
+  it('returns 409 for duplicate category names and conflicting renames', async () => {
+    const admin = await signedInAdmin();
+    const first = await createApiCategory(admin.cookie);
+    const second = await createApiCategory(admin.cookie);
+    await request(app.getHttpServer())
+      .post('/categories')
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: first.name })
+      .expect(409);
+    await request(app.getHttpServer())
+      .patch(`/categories/${second.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: first.name })
+      .expect(409);
+    await request(app.getHttpServer())
+      .get(`/categories/${second.id}`)
+      .expect(200)
+      .expect(second);
+  });
+
+  it('allows only one category when requests race for the same name', async () => {
+    const admin = await signedInAdmin();
+    const name = `Race category ${randomUUID()}`;
+    categoryNames.push(name);
+    const responses = await Promise.all(
+      [1, 2].map(() =>
+        request(app.getHttpServer())
+          .post('/categories')
+          .set('Cookie', admin.cookie)
+          .set('Origin', 'http://localhost:3000')
+          .send({ name }),
+      ),
+    );
+    for (const response of responses) {
+      if (response.status === 201) categoryIds.push(responseId(response));
+    }
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 409,
+    ]);
+    expect(
+      await client`SELECT id FROM categories WHERE name = ${name}`,
+    ).toHaveLength(1);
+  });
+
+  it('rejects deleting a used category without removing it or its products', async () => {
+    const admin = await signedInAdmin();
+    await createSeller(admin.cookie);
+    const category = await createApiCategory(admin.cookie);
+    const product = await request(app.getHttpServer())
+      .post('/products')
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({
+        name: 'Category test keyboard',
+        categoryId: category.id,
+        stockQuantity: 1,
+        price: '10.00',
+      })
+      .expect(201);
+    const productId = responseId(product);
+    await request(app.getHttpServer())
+      .delete(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(409);
+    await request(app.getHttpServer())
+      .get(`/categories/${category.id}`)
+      .expect(200)
+      .expect(category);
+    await request(app.getHttpServer())
+      .get(`/products/${productId}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .delete(`/products/${productId}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(204);
+    await request(app.getHttpServer())
+      .delete(`/categories/${category.id}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(204);
+  });
+
+  it('searches literal names case-insensitively and uses deterministic pagination', async () => {
+    const admin = await signedInAdmin();
+    const prefix = `Category batch ${randomUUID()}`;
+    const categories: Category[] = [];
+    for (const suffix of ['Keyboards', 'Mouse', '100% USB_C']) {
+      categories.push(
+        await createApiCategory(admin.cookie, `${prefix} ${suffix}`),
+      );
+    }
+    const sorted = [...categories].sort((left, right) =>
+      left.id.localeCompare(right.id),
+    );
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: prefix })
+      .expect(200)
+      .expect(sorted);
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: prefix, page: 2, limit: 1 })
+      .expect(200)
+      .expect([sorted[1]]);
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: prefix, page: 4, limit: 1 })
+      .expect(200)
+      .expect([]);
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: `${prefix} KEY` })
+      .expect(200)
+      .expect([categories[0]]);
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: `${prefix} 100%` })
+      .expect(200)
+      .expect([categories[2]]);
+    await request(app.getHttpServer())
+      .get('/categories')
+      .query({ search: `${prefix} missing` })
+      .expect(200)
+      .expect([]);
+  });
+
+  it('rejects invalid bodies and IDs, and returns 404 for missing category UUIDs', async () => {
+    const admin = await signedInAdmin();
+    const category = await createApiCategory(admin.cookie);
+    for (const body of [
+      {},
+      { name: '' },
+      { name: 42 },
+      { name: category.name, isAdmin: true },
+    ]) {
+      const response = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Cookie', admin.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .send(body);
+      if (response.status === 201) categoryIds.push(responseId(response));
+      expect(response.status).toBe(400);
+      await request(app.getHttpServer())
+        .patch(`/categories/${category.id}`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .send(body)
+        .expect(400);
+    }
+    await request(app.getHttpServer())
+      .get('/categories/not-a-uuid')
+      .expect(400);
+    await request(app.getHttpServer())
+      .get(`/categories/${randomUUID()}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .patch(`/categories/${randomUUID()}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: 'Updated' })
+      .expect(404);
+    await request(app.getHttpServer())
+      .delete(`/categories/${randomUUID()}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(404);
+    await request(app.getHttpServer()).get('/categories?limit=101').expect(400);
+    await request(app.getHttpServer()).get('/categories?page=abc').expect(400);
   });
 });

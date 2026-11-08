@@ -412,6 +412,7 @@ describe('AppController (e2e)', () => {
         name: 'Test buyer',
         email: 'buyer@example.test',
         emailVerified: false,
+        isAdmin: false,
         image: null,
         createdAt: date,
         updatedAt: date,

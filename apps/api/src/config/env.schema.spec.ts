@@ -133,3 +133,34 @@ describe('Better Auth configuration boundaries', () => {
     },
   );
 });
+
+describe('optional Supabase image storage', () => {
+  const environment = {
+    ...validAuthEnvironment,
+    DATABASE_URL: 'postgresql://localhost:5432/store_test',
+  };
+  it('accepts a complete storage configuration', () => {
+    expect(
+      envSchema.safeParse({
+        ...environment,
+        SUPABASE_URL: 'https://storage.example.test',
+        SUPABASE_SERVICE_ROLE_KEY: 'fake-storage-key-for-unit-tests',
+        SUPABASE_STORAGE_BUCKET: 'product-images',
+      }).success,
+    ).toBe(true);
+  });
+  it.each([
+    { SUPABASE_URL: 'https://storage.example.test' },
+    { SUPABASE_SERVICE_ROLE_KEY: 'fake-storage-key-for-unit-tests' },
+    {
+      SUPABASE_URL: 'ftp://storage.example.test',
+      SUPABASE_SERVICE_ROLE_KEY: 'fake-storage-key-for-unit-tests',
+    },
+    { SUPABASE_STORAGE_BUCKET: '../private' },
+    { SUPABASE_SERVICE_ROLE_KEY: 'short' },
+  ])('rejects incomplete or unsafe storage settings %#', (settings) => {
+    expect(envSchema.safeParse({ ...environment, ...settings }).success).toBe(
+      false,
+    );
+  });
+});

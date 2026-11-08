@@ -15,6 +15,7 @@ describe('SessionGuard session lookup', () => {
       name: 'Test buyer',
       email: 'buyer@example.test',
       emailVerified: false,
+      isAdmin: false,
       image: null,
       createdAt: date,
       updatedAt: date,
