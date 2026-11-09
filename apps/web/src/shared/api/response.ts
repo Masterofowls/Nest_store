@@ -24,12 +24,7 @@ export class ApiError extends Error {
     }
 }
 
-export async function getJson(
-    api: string,
-    path: string,
-    description: string,
-    query: Record<string, string | number | undefined> = {},
-): Promise<unknown> {
+export function parseApiBase(api: string): URL {
     const base = new URL(api);
     if (
         (base.protocol !== "http:" && base.protocol !== "https:") ||
@@ -42,6 +37,16 @@ export async function getJson(
             "API base must be an HTTP or HTTPS URL with a trailing slash and no credentials, query, or fragment",
         );
     }
+    return base;
+}
+
+export async function getJson(
+    api: string,
+    path: string,
+    description: string,
+    query: Record<string, string | number | undefined> = {},
+): Promise<unknown> {
+    const base = parseApiBase(api);
     const url = new URL(path, base);
     for (const [key, value] of Object.entries(query)) {
         if (value !== undefined) {

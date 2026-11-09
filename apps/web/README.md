@@ -37,8 +37,13 @@ in `/` and, where supported, pagination and search options. They throw an
 errors as the cause of invalid-response errors.
 
 Private GETs use same-origin browser cookies; server-side calls do not
-automatically forward the user's cookie. These modules do not implement sign-in
-or write operations. The production proxy is not configured.
+automatically forward the user's cookie. The user API also provides `signIn`,
+`signOut` and `signUp`. Sign-in and sign-up validate their inputs before
+sending a request. For browser calls, `signInAndGetCurrentUser` and
+`signUpAndGetCurrentUser` authenticate and then load the current user. A user
+request can fail after sign-up has already created the account.
+`getOptionalCurrentUser` returns `null` for a 401 and propagates other failures.
+Other write operations are not implemented. The production proxy is not configured.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
@@ -51,11 +56,14 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Logic tests
+## Tests
 
 [vitest.config.mts](./vitest.config.mts) runs colocated `.test.ts`/`.spec.ts`
 files in Node without global test functions. Import test APIs from `vitest`.
-Browser/component test configuration comes with the UI lessons.
+Vitest resolves the path aliases in `tsconfig.json`.
+Component tests use React Testing Library and user-event. Add
+`@vitest-environment jsdom` to a component test and call `cleanup` after each
+test; logic tests continue to run in Node.
 
 Coverage includes untested source and writes reports to ignored `coverage/`.
 Tests, test-only directories and type declarations are excluded.
