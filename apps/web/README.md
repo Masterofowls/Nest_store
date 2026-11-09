@@ -16,6 +16,30 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+For local API development, run the web server on port 3001 and the API on port
+3000. The development-only rewrite forwards `/backend/*` to `API_ORIGIN`
+from `apps/web/.env.local`. If it is unset, Next.js warns and uses
+`http://localhost:3000`. Set it to an HTTP or HTTPS origin without credentials,
+a path, query or fragment. Set the API's `TRUSTED_FRONTEND_ORIGIN` to the web
+origin, for example `http://localhost:3001`. Browser auth requests use
+`/backend/api/auth/*`; email/password signup, sign-in and authenticated user
+requests have been checked through the development rewrite. OAuth callbacks and
+production routing have not been verified.
+
+`getProducts` accepts an absolute API base URL. A base containing a path must
+end in `/`, for example `http://localhost:3001/backend/`.
+
+The marketplace entity modules provide response schemas, parsers and GET
+functions for categories, sellers, images, cart, orders, favourites, ratings,
+views and recommendations. GET functions accept an absolute base URL ending
+in `/` and, where supported, pagination and search options. They throw an
+`ApiError` with the HTTP status for unsuccessful responses and preserve Zod
+errors as the cause of invalid-response errors.
+
+Private GETs use same-origin browser cookies; server-side calls do not
+automatically forward the user's cookie. These modules do not implement sign-in
+or write operations. The production proxy is not configured.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More
@@ -35,8 +59,9 @@ Browser/component test configuration comes with the UI lessons.
 
 Coverage includes untested source and writes reports to ignored `coverage/`.
 Tests, test-only directories and type declarations are excluded.
-There are no behavior tests yet; the first logic lesson will add them.
-An empty suite is not treated as a passing test run.
+Product API tests use MSW to intercept requests in Node. Unhandled requests
+fail rather than reaching the network. An empty suite is not treated as a
+passing test run.
 
 ## Deploy on Vercel
 

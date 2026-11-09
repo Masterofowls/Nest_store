@@ -16,7 +16,43 @@ export const envSchema = z
       .refine(
         (value) => value.startsWith('http://') || value.startsWith('https://'),
         { message: 'BETTER_AUTH_URL must use http:// or https://' },
+      )
+      .refine(
+        (value) =>
+          URL.canParse(value) && !new URL(value).hostname.includes('*'),
+        { message: 'BETTER_AUTH_URL must not contain a wildcard hostname' },
       ),
+    BETTER_AUTH_TRUSTED_ORIGINS: z
+      .string()
+      .refine((value) => value === '', {
+        message:
+          'Use TRUSTED_FRONTEND_ORIGIN instead of BETTER_AUTH_TRUSTED_ORIGINS',
+      })
+      .optional(),
+    TRUSTED_FRONTEND_ORIGIN: z
+      .string()
+      .refine(
+        (value) => {
+          if (
+            !/^https?:\/\/[^\s\\/?#@*]+\/?$/i.test(value) ||
+            !URL.canParse(value)
+          ) {
+            return false;
+          }
+          const url = new URL(value);
+          return (
+            (url.protocol === 'http:' || url.protocol === 'https:') &&
+            !url.hostname.includes('*') &&
+            url.href === `${url.origin}/`
+          );
+        },
+        {
+          message:
+            'TRUSTED_FRONTEND_ORIGIN must be an HTTP or HTTPS origin without credentials, path, query, fragment, or wildcard',
+        },
+      )
+      .transform((value) => new URL(value).origin)
+      .optional(),
     SUPABASE_URL: z
       .url()
       .refine(

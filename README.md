@@ -168,10 +168,14 @@ Prices remain strings. List responses remain arrays, ordered by UUID, with
 default `page=1`, `limit=10`, and maximum `limit=100`. Product search matches
 case-insensitive literal name substrings or an exact product UUID.
 
-All seller/product writes require an `Origin` header matching the origin of
-`BETTER_AUTH_URL`, even for command-line clients. This strict origin check
-blocks cross-site cookie-authenticated writes; missing, `null`, and foreign
-origins are rejected. A separate frontend origin is not supported yet.
+Protected writes require an `Origin` header matching the origin of
+`BETTER_AUTH_URL` or the optional `TRUSTED_FRONTEND_ORIGIN`, even for
+command-line clients. Both Better Auth and the NestJS write guard trust the
+configured frontend origin. The write guard rejects missing, `null`, and
+untrusted origins. The frontend setting must be an HTTP(S) origin without a
+path, credentials, query, fragment, or wildcard. Use this setting rather than
+Better Auth's `BETTER_AUTH_TRUSTED_ORIGINS` environment variable, which the API
+rejects to prevent unvalidated additional origins.
 
 Missing sessions return 401; a missing seller profile or another seller's
 product returns 403. Malformed IDs/bodies/queries or unknown categories return

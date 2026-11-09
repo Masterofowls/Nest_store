@@ -9,11 +9,15 @@ import { account, session, user, verification } from '../db/schema';
 @Injectable()
 export class AuthService {
   readonly auth: ReturnType<AuthService['createAuth']>;
+  readonly trustedFrontendOrigin: string | undefined;
 
   constructor(
     config: ConfigService<Environment, true>,
     databaseService: DatabaseService,
   ) {
+    this.trustedFrontendOrigin = config.get('TRUSTED_FRONTEND_ORIGIN', {
+      infer: true,
+    });
     this.auth = this.createAuth(config, databaseService);
   }
 
@@ -28,6 +32,10 @@ export class AuthService {
       }),
       secret: config.getOrThrow('BETTER_AUTH_SECRET', { infer: true }),
       baseURL: config.getOrThrow('BETTER_AUTH_URL', { infer: true }),
+      trustedOrigins: this.trustedFrontendOrigin
+        ? [this.trustedFrontendOrigin]
+        : [],
+      advanced: { disableOriginCheck: false },
       emailAndPassword: { enabled: true },
       user: {
         additionalFields: {

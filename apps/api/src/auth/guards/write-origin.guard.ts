@@ -14,7 +14,13 @@ export class WriteOriginGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<SessionRequest>();
     const baseURL = this.authService.auth.options.baseURL;
-    if (!baseURL || request.headers.origin !== new URL(baseURL).origin) {
+    const origin = request.headers.origin;
+    if (
+      !baseURL ||
+      !origin ||
+      (origin !== new URL(baseURL).origin &&
+        origin !== this.authService.trustedFrontendOrigin)
+    ) {
       throw new ForbiddenException('A trusted Origin header is required');
     }
     return true;

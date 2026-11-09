@@ -45,6 +45,7 @@ const config = new ConfigService<Environment, true>({
   DATABASE_URL: result.data.TEST_DATABASE_URL,
   BETTER_AUTH_SECRET: 'fake-test-secret-with-at-least-thirty-two-characters',
   BETTER_AUTH_URL: 'http://localhost:3000',
+  TRUSTED_FRONTEND_ORIGIN: 'http://localhost:3001',
 });
 let auth: AuthService['auth'];
 const password = 'Integration-test-password-42!';
@@ -284,6 +285,68 @@ afterAll(async () => {
 });
 
 describe('Better Auth local PostgreSQL integration', () => {
+  it('enforces configured origins for auth and authenticated writes', async () => {
+    const email = testEmail();
+    const body = { name: 'Origin test buyer', email, password };
+
+    await request(app.getHttpServer())
+      .post('/api/auth/sign-up/email')
+      .set('Origin', 'https://untrusted.example')
+      .send(body)
+      .expect(403);
+    expect(await client`SELECT id FROM "user" WHERE email = ${email}`).toEqual(
+      [],
+    );
+
+    const signup = await request(app.getHttpServer())
+      .post('/api/auth/sign-up/email')
+      .set('Origin', 'http://localhost:3001')
+      .send(body)
+      .expect(200);
+    const cookie = httpSessionCookie(signup);
+
+    await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Origin', 'http://localhost:3001')
+      .send({ name: 'No session' })
+      .expect(401);
+
+    for (const origin of [
+      'https://untrusted.example',
+      'http://localhost:3001.attacker.example',
+      'http://localhost:3002',
+      'null',
+    ]) {
+      await request(app.getHttpServer())
+        .patch('/users/me')
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ name: 'Not allowed' })
+        .expect(403);
+    }
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Cookie', cookie)
+      .send({ name: 'No origin' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:3001')
+      .send({ name: 'Frontend origin' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: 'Base origin' })
+      .expect(200);
+  });
+
   it('keeps signup and user updates from granting admin access', async () => {
     const email = testEmail();
     const signup = await request(app.getHttpServer())

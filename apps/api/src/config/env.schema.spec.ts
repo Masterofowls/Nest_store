@@ -132,6 +132,110 @@ describe('Better Auth configuration boundaries', () => {
       ).toBe(false);
     },
   );
+
+  it.each(['https://*.example.test', 'https://%2a.example.test'])(
+    'rejects a wildcard Better Auth hostname %s',
+    (url) => {
+      expect(
+        envSchema.safeParse({ ...validEnvironment, BETTER_AUTH_URL: url })
+          .success,
+      ).toBe(false);
+    },
+  );
+
+  it.each(['https://other.example.test', 'https://*.example.test', ' '])(
+    'rejects Better Auth environment trust overrides',
+    (origins) => {
+      expect(() =>
+        validateEnvironment({
+          ...validEnvironment,
+          BETTER_AUTH_TRUSTED_ORIGINS: origins,
+        }),
+      ).toThrow(
+        /BETTER_AUTH_TRUSTED_ORIGINS: Use TRUSTED_FRONTEND_ORIGIN instead/,
+      );
+    },
+  );
+
+  it('accepts an empty Better Auth environment trust override', () => {
+    expect(
+      envSchema.safeParse({
+        ...validEnvironment,
+        BETTER_AUTH_TRUSTED_ORIGINS: '',
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('optional trusted frontend origin', () => {
+  const environment = {
+    ...validAuthEnvironment,
+    DATABASE_URL: 'postgresql://localhost:5432/store_test',
+  };
+
+  it('accepts an absent origin', () => {
+    expect(
+      envSchema.parse(environment).TRUSTED_FRONTEND_ORIGIN,
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ['http://localhost:3001', 'http://localhost:3001'],
+    ['http://localhost:3001/', 'http://localhost:3001'],
+    ['HTTPS://EXAMPLE.TEST:443/', 'https://example.test'],
+    ['http://[::1]:3001/', 'http://[::1]:3001'],
+  ])('normalizes %s to %s', (input, expected) => {
+    expect(
+      envSchema.parse({ ...environment, TRUSTED_FRONTEND_ORIGIN: input })
+        .TRUSTED_FRONTEND_ORIGIN,
+    ).toBe(expected);
+  });
+
+  it.each([
+    '',
+    null,
+    123,
+    'not-a-url',
+    'localhost:3001',
+    'ftp://localhost:3001',
+    'http://localhost:3001/shop',
+    'http://localhost:3001//',
+    'http://localhost:3001/shop/..',
+    'http://localhost:3001/?',
+    'http://localhost:3001/?query=value',
+    'http://localhost:3001/#',
+    'http://localhost:3001/#fragment',
+    'http://user:password@localhost:3001',
+    'http://@localhost:3001',
+    'http://localhost:3001\\',
+    'http://localhost:3001 ',
+    'https://*.example.test',
+    'https://%2a.example.test',
+  ])('rejects invalid origin %#', (origin) => {
+    expect(
+      envSchema.safeParse({
+        ...environment,
+        TRUSTED_FRONTEND_ORIGIN: origin,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('reports the field without exposing the rejected value', () => {
+    const origin = 'http://user:password@localhost:3001';
+    expect(() =>
+      validateEnvironment({ ...environment, TRUSTED_FRONTEND_ORIGIN: origin }),
+    ).toThrow(
+      /^Invalid environment configuration: TRUSTED_FRONTEND_ORIGIN: TRUSTED_FRONTEND_ORIGIN must be/,
+    );
+    try {
+      validateEnvironment({ ...environment, TRUSTED_FRONTEND_ORIGIN: origin });
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(Error);
+      if (error instanceof Error) {
+        expect(error.message).not.toContain(origin);
+      }
+    }
+  });
 });
 
 describe('optional Supabase image storage', () => {
