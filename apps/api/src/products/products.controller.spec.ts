@@ -10,6 +10,8 @@ import { SellerGuard } from '../sellers/seller.guard';
 import type { SellerRequest } from '../sellers/seller-request';
 import { productFixture, sellerFixture } from '../../test/marketplace.fixtures';
 
+const productJson = JSON.parse(JSON.stringify(productFixture)) as object;
+
 describe('ProductsController input and service mapping', () => {
   let app: NestExpressApplication;
   const service = {
@@ -58,7 +60,7 @@ describe('ProductsController input and service mapping', () => {
         `/products?search=KEY&page=2&limit=1&categoryId=${productFixture.categoryId}`,
       )
       .expect(200)
-      .expect([productFixture]);
+      .expect([productJson]);
     expect(service.findAll).toHaveBeenCalledWith({
       search: 'KEY',
       page: 2,
@@ -71,7 +73,7 @@ describe('ProductsController input and service mapping', () => {
     await request(app.getHttpServer())
       .get(`/products/${productFixture.id}`)
       .expect(200)
-      .expect(productFixture);
+      .expect(productJson);
     expect(service.getOrThrow).toHaveBeenCalledWith(productFixture.id);
   });
 

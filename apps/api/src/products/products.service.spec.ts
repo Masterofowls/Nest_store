@@ -21,15 +21,21 @@ const product: Product = {
   stockQuantity: 2,
   discountPercent: 0,
   description: null,
+  deliveryDays: 3,
+  badge: null,
+  createdAt: new Date('2026-11-10T00:00:00.000Z'),
 };
+
+const listedRow = { ...product, averageRating: '4.5', ratingCount: 2 };
+const listedProduct = { ...product, averageRating: 4.5, ratingCount: 2 };
 
 describe('ProductsService database operations', () => {
   let service: ProductsService;
-  let select: ReturnType<typeof queryMock<Product>>;
+  let select: ReturnType<typeof queryMock<typeof listedRow>>;
   let mutation: ReturnType<typeof queryMock<Product>>;
 
   beforeEach(async () => {
-    select = queryMock([product]);
+    select = queryMock([listedRow]);
     mutation = queryMock([product]);
     const module = await Test.createTestingModule({
       providers: [
@@ -52,15 +58,17 @@ describe('ProductsService database operations', () => {
 
   it('bounds and orders the list query', async () => {
     await expect(service.findAll({ page: 2, limit: 3 })).resolves.toEqual([
-      product,
+      listedProduct,
     ]);
     expect(select.limit).toHaveBeenCalledWith(3);
     expect(select.offset).toHaveBeenCalledWith(3);
     expect(select.orderBy).toHaveBeenCalledTimes(1);
   });
 
-  it('returns an existing product', async () => {
-    await expect(service.getOrThrow(product.id)).resolves.toEqual(product);
+  it('returns an existing product with numeric rating stats', async () => {
+    await expect(service.getOrThrow(product.id)).resolves.toEqual(
+      listedProduct,
+    );
   });
 
   it('rejects an unknown product', async () => {

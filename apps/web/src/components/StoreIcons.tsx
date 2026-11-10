@@ -78,6 +78,24 @@ export function UserIcon(props: IconProps) {
     );
 }
 
+export function HomeIcon(props: IconProps) {
+    return (
+        <IconFrame {...props}>
+            <path d="M4 10.5 12 4l8 6.5V20h-5v-5.5h-6V20H4Z" />
+        </IconFrame>
+    );
+}
+
+export function TruckIcon(props: IconProps) {
+    return (
+        <IconFrame {...props}>
+            <path d="M3 6h11v10H3zM14 9.5h4l3 3.5v3h-7" />
+            <circle cx="7" cy="17.5" r="1.6" />
+            <circle cx="17.5" cy="17.5" r="1.6" />
+        </IconFrame>
+    );
+}
+
 export function StarIcon(props: IconProps) {
     return (
         <IconFrame fill="currentColor" stroke="none" {...props}>

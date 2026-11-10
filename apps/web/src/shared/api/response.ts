@@ -71,9 +71,21 @@ export const pageQuerySchema = z.strictObject({
 export const searchQuerySchema = pageQuerySchema.extend({
     search: z.string().trim().max(200).optional(),
 });
+const priceFilter = z
+    .string()
+    .regex(/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/)
+    .optional();
+
 export const productQuerySchema = searchQuerySchema.extend({
     categoryId: z.uuid().optional(),
     sellerId: z.uuid().optional(),
+    sort: z
+        .enum(["popular", "price_asc", "price_desc", "rating", "newest"])
+        .optional(),
+    minPrice: priceFilter,
+    maxPrice: priceFilter,
+    discounted: z.literal("true").optional(),
+    inStock: z.literal("true").optional(),
 });
 export type PageQuery = z.input<typeof pageQuerySchema>;
 export type SearchQuery = z.input<typeof searchQuerySchema>;

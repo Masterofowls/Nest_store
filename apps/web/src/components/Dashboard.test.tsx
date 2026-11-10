@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
 
-import {
-    cleanup,
-    render,
-    screen,
-    waitFor,
-    within,
-} from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { HttpResponse, http } from "msw";
@@ -72,77 +66,110 @@ afterAll(() => {
     server.close();
 });
 
+function emptyProductDetails() {
+    return [
+        http.get(`${origin}/backend/products/:productId/images`, () =>
+            HttpResponse.json([]),
+        ),
+        http.get(`${origin}/backend/products/:productId/ratings`, () =>
+            HttpResponse.json([]),
+        ),
+    ];
+}
+
 describe("Dashboard", () => {
-    it("pages through all products without a search filter", async () => {
+    it("shows a product feed without search and loads more on request", async () => {
         server.use(
+            http.get(`${origin}/backend/users/me`, () =>
+                HttpResponse.json(null, { status: 401 }),
+            ),
             http.get(`${origin}/backend/products`, ({ request }) => {
                 const url = new URL(request.url);
                 const page = url.searchParams.get("page");
                 requests.push({ page, search: url.searchParams.get("search") });
-
                 return HttpResponse.json(
                     page === "2"
                         ? makeProducts("Keyboard", 11, 1)
                         : makeProducts("Keyboard", 1, 10),
                 );
             }),
-            http.get(`${origin}/backend/products/:productId/images`, () =>
-                HttpResponse.json([]),
-            ),
-            http.get(`${origin}/backend/products/:productId/ratings`, () =>
-                HttpResponse.json([]),
-            ),
+            ...emptyProductDetails(),
         );
 
-        const user = userEvent.setup();
         renderDashboard();
 
         expect(
-            await screen.findByRole("heading", { name: "Keyboard 1" }),
+            await screen.findByRole("heading", {
+                name: "All products",
+            }),
         ).not.toBeNull();
+        await screen.findByRole("heading", { name: "Keyboard 1" });
         expect(screen.queryByRole("searchbox")).toBeNull();
+        expect(
+            screen.queryByRole("heading", { name: "You viewed" }),
+        ).toBeNull();
 
-        const nextPageButton = screen.getByRole("button", {
-            name: "Next page",
-        });
-        await waitFor(() => {
-            expect(nextPageButton).toHaveProperty("disabled", false);
-        });
-        await user.click(nextPageButton);
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", { name: "Show more" }));
         expect(
             await screen.findByRole("heading", { name: "Keyboard 11" }),
         ).not.toBeNull();
-        expect(screen.getByText("Page 2")).not.toBeNull();
+        expect(requests.map((request) => request.page)).toEqual(["1", "2"]);
         expect(requests.every((request) => request.search === null)).toBe(true);
     });
 
-    it("disables Previous page on the first page", async () => {
+    it("shows viewed products and similar products for a signed-in user", async () => {
+        const [viewed] = makeProducts("Viewed keyboard", 50, 1);
+        const [similar] = makeProducts("Similar mouse", 60, 1);
         server.use(
+            http.get(`${origin}/backend/users/me`, () =>
+                HttpResponse.json({
+                    id: "user-1",
+                    name: "Buyer",
+                    email: "buyer@example.test",
+                    emailVerified: false,
+                    image: null,
+                }),
+            ),
+            http.get(`${origin}/backend/users/me/views`, () =>
+                HttpResponse.json([
+                    {
+                        id: "00000000-0000-4000-8000-000000000901",
+                        productId: viewed?.id,
+                        productName: viewed?.name,
+                        viewedAt: "2026-11-10T00:00:00.000Z",
+                    },
+                ]),
+            ),
+            http.get(
+                `${origin}/backend/products/:productId/recommendations`,
+                () => HttpResponse.json([{ ...similar, coViewers: 2 }]),
+            ),
+            http.get(`${origin}/backend/products/:productId`, () =>
+                HttpResponse.json(viewed),
+            ),
             http.get(`${origin}/backend/products`, () =>
-                HttpResponse.json(makeProducts("Mouse", 1, 10)),
+                HttpResponse.json(makeProducts("Keyboard", 1, 2)),
             ),
-            http.get(`${origin}/backend/products/:productId/images`, () =>
-                HttpResponse.json([]),
-            ),
-            http.get(`${origin}/backend/products/:productId/ratings`, () =>
-                HttpResponse.json([]),
-            ),
+            ...emptyProductDetails(),
         );
 
         renderDashboard();
-        await screen.findByRole("heading", { name: "Mouse 1" });
 
-        const pagination = within(
-            screen.getByRole("navigation", { name: "Product pages" }),
-        );
         expect(
-            pagination.getByRole("button", { name: "Previous page" }),
-        ).toHaveProperty("disabled", true);
-        const nextPageButton = pagination.getByRole("button", {
-            name: "Next page",
-        });
-        await waitFor(() => {
-            expect(nextPageButton).toHaveProperty("disabled", false);
-        });
+            await screen.findByRole("heading", { name: "You viewed" }),
+        ).not.toBeNull();
+        expect(
+            await screen.findByRole("heading", { name: "Viewed keyboard 50" }),
+        ).not.toBeNull();
+        expect(
+            await screen.findByRole("heading", {
+                name: "Similar to Viewed keyboard 50",
+            }),
+        ).not.toBeNull();
+        expect(
+            await screen.findByRole("heading", { name: "Similar mouse 60" }),
+        ).not.toBeNull();
     });
 });

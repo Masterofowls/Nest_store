@@ -21,6 +21,9 @@ export const productFixture: Product = {
   price: '29.99',
   discountPercent: 0,
   description: null,
+  deliveryDays: 3,
+  badge: null,
+  createdAt: date,
 };
 
 export const sessionFixture: AuthSession = {

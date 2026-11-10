@@ -127,9 +127,12 @@ describe("ProductItem", () => {
             }),
         ).not.toBeNull();
         expect(requestedProductId).toBe(productId);
-        expect(screen.getByText("89.99")).not.toBeNull();
-        expect(screen.getByText("24 units")).not.toBeNull();
+        expect(screen.getByText("$80.99")).not.toBeNull();
+        expect(screen.getByText("$89.99")).not.toBeNull();
+        expect(screen.getByText("24 in stock")).not.toBeNull();
         expect(await screen.findByText("Score: 5 out of 5")).not.toBeNull();
+        expect(screen.getByText("5 stars")).not.toBeNull();
+        expect(screen.getByText("1 review")).not.toBeNull();
         expect(await screen.findByText("Good key feel.")).not.toBeNull();
         expect(
             (

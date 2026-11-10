@@ -5,8 +5,10 @@ import {
   index,
   integer,
   numeric,
+  pgEnum,
   primaryKey,
   pgTable,
+  type AnyPgColumn,
   text,
   timestamp,
   uniqueIndex,
@@ -105,10 +107,25 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const categories = pgTable('categories', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull().unique(),
-});
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull().unique(),
+    parentId: uuid('parent_id').references((): AnyPgColumn => categories.id, {
+      onDelete: 'restrict',
+    }),
+  },
+  (table) => [
+    index('categories_parent_id_idx').on(table.parentId),
+    check('categories_not_own_parent', sql`${table.parentId} <> ${table.id}`),
+  ],
+);
+
+export const productBadge = pgEnum('product_badge', [
+  'bestseller',
+  'low_price',
+]);
 
 export const sellerProfiles = pgTable(
   'seller_profiles',
@@ -144,10 +161,20 @@ export const products = pgTable(
     stockQuantity: integer('stock_quantity').notNull(),
     price: numeric('price', { precision: 10, scale: 2 }).notNull(),
     discountPercent: integer('discount_percent').notNull().default(0),
+    deliveryDays: integer('delivery_days').notNull().default(3),
+    badge: productBadge('badge'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index('products_seller_id_idx').on(table.sellerId),
     index('products_category_id_idx').on(table.categoryId),
+    index('products_created_at_idx').on(table.createdAt),
+    check(
+      'products_delivery_days_range',
+      sql`${table.deliveryDays} BETWEEN 0 AND 60`,
+    ),
     check('products_stock_nonnegative', sql`${table.stockQuantity} >= 0`),
     check('products_price_nonnegative', sql`${table.price} >= 0`),
     check(

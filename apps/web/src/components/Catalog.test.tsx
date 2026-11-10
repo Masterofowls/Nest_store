@@ -107,4 +107,44 @@ describe("Catalog", () => {
             await screen.findByText("No products match these filters."),
         ).not.toBeNull();
     });
+
+    it("sends sort, price, discount, stock and preselected category filters", async () => {
+        const requests: URLSearchParams[] = [];
+        server.use(
+            http.get(`${api}/categories`, () =>
+                HttpResponse.json([{ id: categoryId, name: "Audio" }]),
+            ),
+            http.get(`${api}/products`, ({ request }) => {
+                requests.push(new URL(request.url).searchParams);
+                return HttpResponse.json([]);
+            }),
+        );
+        const user = userEvent.setup();
+        renderWithStore(<Catalog initialCategoryId={categoryId} />);
+
+        await screen.findByRole("option", { name: "Audio" });
+        expect(
+            (screen.getByLabelText("Category") as HTMLSelectElement).value,
+        ).toBe(categoryId);
+        await user.selectOptions(
+            screen.getByLabelText("Sort by"),
+            "Price: low to high",
+        );
+        await user.type(screen.getByLabelText("From"), "10");
+        await user.type(screen.getByLabelText("To"), "50");
+        await user.click(screen.getByRole("button", { name: "Apply price" }));
+        await user.click(screen.getByLabelText("Discounted only"));
+        await user.click(screen.getByLabelText("In stock only"));
+
+        await waitFor(() => {
+            const last = requests.at(-1);
+            expect(last?.get("categoryId")).toBe(categoryId);
+            expect(last?.get("sort")).toBe("price_asc");
+            expect(last?.get("minPrice")).toBe("10");
+            expect(last?.get("maxPrice")).toBe("50");
+            expect(last?.get("discounted")).toBe("true");
+            expect(last?.get("inStock")).toBe("true");
+            expect(last?.get("page")).toBe("1");
+        });
+    });
 });

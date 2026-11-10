@@ -1,16 +1,31 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { z } from "zod";
 import Catalog from "@/components/Catalog";
 
 export const metadata: Metadata = { title: "Catalog" };
 
+function readParam(value: string | string[] | undefined) {
+    return typeof value === "string" ? value.trim() : "";
+}
+
 async function CatalogWithSearch({
     searchParams,
 }: Pick<PageProps<"/catalog">, "searchParams">) {
-    const { search } = await searchParams;
-    const initialSearch = typeof search === "string" ? search.trim() : "";
+    const params = await searchParams;
+    const initialSearch = readParam(params.search);
+    const category = readParam(params.category);
+    const initialCategoryId = z.uuid().safeParse(category).success
+        ? category
+        : "";
 
-    return <Catalog key={initialSearch} initialSearch={initialSearch} />;
+    return (
+        <Catalog
+            key={`${initialSearch}|${initialCategoryId}`}
+            initialSearch={initialSearch}
+            initialCategoryId={initialCategoryId}
+        />
+    );
 }
 
 export default function CatalogPage({ searchParams }: PageProps<"/catalog">) {

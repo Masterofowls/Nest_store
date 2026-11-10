@@ -39,22 +39,10 @@ class RelativeRequest extends Request {
     }
 }
 
-function renderProductList({
-    page = 1,
-    search = "",
-    onPageChange = vi.fn<(page: number) => void>(),
-}: {
-    page?: number;
-    search?: string;
-    onPageChange?: (page: number) => void;
-} = {}) {
+function renderProductList() {
     return render(
         <Provider store={makeStore()}>
-            <ProductList
-                page={page}
-                search={search}
-                onPageChange={onPageChange}
-            />
+            <ProductList />
         </Provider>,
     );
 }
@@ -231,8 +219,7 @@ describe("ProductList", () => {
         );
     });
 
-    it("changes page when the next-page control is selected", async () => {
-        const onPageChange = vi.fn<(page: number) => void>();
+    it("appends the next page when Show more is selected", async () => {
         server.use(
             http.get(`${origin}/backend/products`, ({ request }) => {
                 const page = new URL(request.url).searchParams.get("page");
@@ -260,20 +247,26 @@ describe("ProductList", () => {
             ),
         );
 
-        renderProductList({ onPageChange });
+        renderProductList();
         await screen.findByRole("heading", { name: "Keyboard 1" });
-        const nextPageButton = await screen.findByRole("button", {
-            name: "Next page",
-        });
-        await waitFor(() => {
-            expect(nextPageButton).toHaveProperty("disabled", false);
-        });
-        await userEvent.setup().click(nextPageButton);
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", { name: "Show more" }));
 
-        expect(onPageChange).toHaveBeenCalledWith(2);
+        expect(
+            await screen.findByRole("heading", { name: "Keyboard 11" }),
+        ).not.toBeNull();
+        expect(
+            screen.getByRole("heading", { name: "Keyboard 1" }),
+        ).not.toBeNull();
+        await waitFor(() => {
+            expect(
+                screen.queryByRole("button", { name: "Show more" }),
+            ).toBeNull();
+        });
     });
 
-    it("does not offer an empty next page when the last page is full", async () => {
+    it("hides Show more after an empty page", async () => {
         server.use(
             http.get(`${origin}/backend/products`, ({ request }) => {
                 const page = new URL(request.url).searchParams.get("page");
@@ -297,10 +290,15 @@ describe("ProductList", () => {
 
         renderProductList();
         await screen.findByRole("heading", { name: "Keyboard 1" });
-        const nextPageButton = await screen.findByRole("button", {
-            name: "Next page",
-        });
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", { name: "Show more" }));
 
-        expect(nextPageButton).toHaveProperty("disabled", true);
+        await waitFor(() => {
+            expect(
+                screen.queryByRole("button", { name: "Show more" }),
+            ).toBeNull();
+        });
+        expect(screen.getAllByRole("article")).toHaveLength(10);
     });
 });

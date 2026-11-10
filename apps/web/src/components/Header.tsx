@@ -6,29 +6,40 @@ import {
     useGetCurrentUserQuery,
     useSignOutMutation,
 } from "@/shared/api/baseApi";
-import {
-    BoxIcon,
-    CartIcon,
-    GridIcon,
-    HeartIcon,
-    SearchIcon,
-    UserIcon,
-} from "./StoreIcons";
+import CatalogMenu from "./CatalogMenu";
+import CategoryChips from "./CategoryChips";
+import HeaderSearch from "./HeaderSearch";
+import { BoxIcon, CartIcon, HeartIcon, UserIcon } from "./StoreIcons";
+import { useShopCounts } from "./useShopCounts";
 
 type ShortcutLinkProps = {
     href: string;
     icon: ComponentType<SVGProps<SVGSVGElement>>;
+    count?: number;
     children: ReactNode;
 };
 
-function ShortcutLink({ href, icon: Icon, children }: ShortcutLinkProps) {
+function ShortcutLink({
+    href,
+    icon: Icon,
+    count,
+    children,
+}: ShortcutLinkProps) {
     return (
         <Link
-            className="flex min-h-11 min-w-11 flex-col items-center justify-center rounded-tile px-1.5 text-store-ink hover:text-store-primary sm:px-2"
+            className="relative flex min-h-11 min-w-11 flex-col items-center justify-center rounded-tile px-1.5 text-store-ink hover:text-store-primary sm:px-2"
             href={href}
         >
             <Icon className="size-6" />
             <span className="max-w-20 truncate">{children}</span>
+            {count !== undefined && count > 0 && (
+                <span className="absolute top-0 left-1/2 ml-1.5 min-w-5 rounded-full bg-store-sale px-1 text-center text-[0.6875rem] leading-5 font-bold text-white">
+                    {count}
+                    <span className="sr-only">
+                        {count === 1 ? " item" : " items"}
+                    </span>
+                </span>
+            )}
         </Link>
     );
 }
@@ -42,9 +53,10 @@ export default function Header() {
     } = useGetCurrentUserQuery();
     const [signOut, { isLoading: isSigningOut, isError: isSignOutError }] =
         useSignOutMutation();
+    const { cartCount, favouriteCount } = useShopCounts();
 
     return (
-        <header className="z-30 border-b border-store-border bg-store-surface sm:sticky sm:top-0">
+        <header className="relative z-30 border-b border-store-border bg-store-surface sm:sticky sm:top-0">
             <div className="mx-auto grid max-w-[1440px] grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 px-4 py-3 sm:px-6 lg:grid-cols-[auto_auto_1fr_auto] lg:gap-x-4 lg:px-8">
                 <Link
                     className="text-xl font-extrabold tracking-tight text-store-primary hover:text-store-primary-hover sm:text-2xl"
@@ -54,43 +66,13 @@ export default function Header() {
                 </Link>
 
                 <div className="col-span-2 row-start-2 flex items-stretch gap-2 lg:col-start-2 lg:row-start-1">
-                    <Link
-                        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-tile bg-store-primary px-4 font-semibold text-white hover:bg-store-primary-hover hover:text-white"
-                        href="/catalog"
-                    >
-                        <GridIcon className="size-5" />
-                        <span className="sr-only sm:not-sr-only">Catalog</span>
-                    </Link>
-                    <search className="flex min-w-0 flex-1">
-                        <form
-                            action="/catalog"
-                            method="get"
-                            className="flex min-w-0 flex-1 rounded-tile border-2 border-store-primary bg-store-surface"
-                        >
-                            <label htmlFor="site-search" className="sr-only">
-                                Search the store
-                            </label>
-                            <input
-                                className="min-h-10 min-w-0 flex-1 rounded-tile border-0 bg-transparent px-3 text-base focus-visible:outline-offset-0"
-                                id="site-search"
-                                name="search"
-                                type="search"
-                                placeholder="Search by product name"
-                            />
-                            <button
-                                className="m-0.5 min-h-10 min-w-11 rounded-[calc(var(--radius-tile)-2px)] bg-store-primary px-3 text-white hover:bg-store-primary-hover"
-                                type="submit"
-                            >
-                                <SearchIcon className="size-5" />
-                                <span className="sr-only">Find</span>
-                            </button>
-                        </form>
-                    </search>
+                    <CatalogMenu />
+                    <HeaderSearch />
                 </div>
 
                 <nav
                     aria-label="Shortcuts"
-                    className="col-start-2 row-start-1 justify-self-end lg:col-start-4"
+                    className="col-start-2 row-start-1 hidden justify-self-end sm:block lg:col-start-4"
                 >
                     <ul className="flex items-center gap-1 text-xs font-medium sm:gap-2">
                         {user ? (
@@ -104,12 +86,17 @@ export default function Header() {
                                     <ShortcutLink
                                         href="/favourites"
                                         icon={HeartIcon}
+                                        count={favouriteCount}
                                     >
                                         Favourites
                                     </ShortcutLink>
                                 </li>
                                 <li>
-                                    <ShortcutLink href="/cart" icon={CartIcon}>
+                                    <ShortcutLink
+                                        href="/cart"
+                                        icon={CartIcon}
+                                        count={cartCount}
+                                    >
                                         Cart
                                     </ShortcutLink>
                                 </li>
@@ -187,6 +174,7 @@ export default function Header() {
                     </ul>
                 </nav>
             )}
+            <CategoryChips />
             {isError && (
                 <p
                     className="mx-auto max-w-[1440px] px-4 pb-3 text-red-700"

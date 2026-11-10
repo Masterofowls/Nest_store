@@ -4,6 +4,7 @@ import { Onest } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import MobileTabBar from "@/components/MobileTabBar";
 import StoreProvider from "./StoreProvider";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ const onest = Onest({
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
         <html lang="en" className={onest.variable}>
-            <body>
+            <body className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
                 <a
                     className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"
                     href="#main-content"
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                             {children}
                         </div>
                         <Footer />
+                        <MobileTabBar />
                     </StoreProvider>
                 </Suspense>
             </body>

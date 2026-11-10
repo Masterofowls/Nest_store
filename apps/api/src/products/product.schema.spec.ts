@@ -1,4 +1,8 @@
-import { createProductSchema, updateProductSchema } from './product.schema';
+import {
+  createProductSchema,
+  productQuerySchema,
+  updateProductSchema,
+} from './product.schema';
 
 it('should return valid product', () => {
   const input = {
@@ -121,4 +125,52 @@ describe('updateProductSchema', () => {
   ])('rejects empty or invalid updates %#', (input) => {
     expect(updateProductSchema.safeParse(input).success).toBe(false);
   });
+});
+
+describe('productQuerySchema catalog options', () => {
+  it('parses sort, price range and boolean flags from query strings', () => {
+    expect(
+      productQuerySchema.parse({
+        sort: 'price_desc',
+        minPrice: '10',
+        maxPrice: '99.5',
+        discounted: 'true',
+        inStock: 'false',
+      }),
+    ).toEqual({
+      page: 1,
+      limit: 10,
+      sort: 'price_desc',
+      minPrice: '10',
+      maxPrice: '99.5',
+      discounted: true,
+      inStock: false,
+    });
+  });
+
+  it.each([
+    { sort: 'cheapest' },
+    { discounted: '1' },
+    { inStock: 'yes' },
+    { minPrice: '-1' },
+    { maxPrice: '1.999' },
+    { minPrice: '50', maxPrice: '10' },
+  ])('rejects %o', (query) => {
+    expect(productQuerySchema.safeParse(query).success).toBe(false);
+  });
+
+  it.each([{ deliveryDays: -1 }, { deliveryDays: 61 }, { badge: 'sale' }])(
+    'rejects product field %o',
+    (field) => {
+      expect(
+        createProductSchema.safeParse({
+          name: 'Keyboard',
+          categoryId: '550e8400-e29b-41d4-a716-446655440000',
+          stockQuantity: 1,
+          price: '10',
+          ...field,
+        }).success,
+      ).toBe(false);
+    },
+  );
 });

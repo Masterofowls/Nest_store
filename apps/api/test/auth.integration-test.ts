@@ -164,6 +164,12 @@ async function signedInAdmin() {
   return buyer;
 }
 
+type ListedProduct = Omit<Product, 'createdAt'> & {
+  createdAt: string;
+  averageRating: number | null;
+  ratingCount: number;
+};
+
 async function createApiCategory(
   cookie: string,
   name = `Test category ${randomUUID()}`,
@@ -180,8 +186,8 @@ async function createApiCategory(
   expect(response.status).toBe(201);
   const id = responseId(response);
   expect(response.headers.location).toBe(`/categories/${id}`);
-  expect(response.body).toEqual({ id, name: name.trim() });
-  return { id, name: name.trim() };
+  expect(response.body).toEqual({ id, name: name.trim(), parentId: null });
+  return { id, name: name.trim(), parentId: null };
 }
 
 async function createSeller(cookie: string) {
@@ -760,7 +766,7 @@ describe('Seller profiles and owned products through Nest', () => {
     const seller = await createSeller(buyer.cookie);
     const categoryId = await createCategory();
     const secondCategory = await createCategory();
-    const items: Product[] = [];
+    const items: ListedProduct[] = [];
     for (const input of [
       {
         name: 'Mechanical Keyboard',
@@ -791,6 +797,11 @@ describe('Seller profiles and owned products through Nest', () => {
         description: null,
         discountPercent: 0,
         price: Number(input.price).toFixed(2),
+        deliveryDays: 3,
+        badge: null,
+        createdAt: (response.body as { createdAt: string }).createdAt,
+        averageRating: null,
+        ratingCount: 0,
       });
     }
     const sorted = [...items].sort((left, right) =>
@@ -895,16 +906,21 @@ describe('Seller profiles and owned products through Nest', () => {
       .set('Origin', 'http://localhost:3000')
       .send({ stockQuantity: 0, description: null, discountPercent: 0 })
       .expect(200)
-      .expect({
-        id,
-        sellerId: seller.id,
-        name: 'Keyboard',
-        categoryId,
-        stockQuantity: 0,
-        description: null,
-        price: '10.00',
-        discountPercent: 0,
-      });
+      .expect((response) =>
+        expect(response.body).toEqual({
+          id,
+          sellerId: seller.id,
+          name: 'Keyboard',
+          categoryId,
+          stockQuantity: 0,
+          description: null,
+          price: '10.00',
+          discountPercent: 0,
+          deliveryDays: 3,
+          badge: null,
+          createdAt: expect.any(String) as unknown,
+        }),
+      );
     await request(app.getHttpServer())
       .delete(`/products/${id}`)
       .set('Cookie', owner.cookie)
@@ -1057,11 +1073,11 @@ describe('Categories through Nest', () => {
       .set('Origin', 'http://localhost:3000')
       .send({ name: ` ${name} ` })
       .expect(200)
-      .expect({ id: category.id, name });
+      .expect({ id: category.id, name, parentId: null });
     await request(app.getHttpServer())
       .get(`/categories/${category.id}`)
       .expect(200)
-      .expect({ id: category.id, name });
+      .expect({ id: category.id, name, parentId: null });
     const deleted = await request(app.getHttpServer())
       .delete(`/categories/${category.id}`)
       .set('Cookie', admin.cookie)
@@ -1643,5 +1659,206 @@ describe('Categories through Nest', () => {
       .expect(404);
     await request(app.getHttpServer()).get('/categories?limit=101').expect(400);
     await request(app.getHttpServer()).get('/categories?page=abc').expect(400);
+  });
+});
+
+describe('Catalog sorting, filters and rating stats through Nest', () => {
+  async function seedCatalog() {
+    const owner = await signedInBuyer();
+    const seller = await createSeller(owner.cookie);
+    const parentId = await createCategory();
+    const childId = randomUUID();
+    // Children are deleted before their parent in afterEach.
+    categoryIds.unshift(childId);
+    await client`INSERT INTO categories (id, name, parent_id) VALUES (${childId}, ${`Test subcategory ${childId}`}, ${parentId})`;
+
+    const ids = { a: randomUUID(), b: randomUUID(), c: randomUUID() };
+    await client`
+      INSERT INTO products (id, name, seller_id, category_id, stock_quantity, price, discount_percent, created_at)
+      VALUES
+        (${ids.a}, 'Sort A', ${seller.id}, ${childId}, 5, '100.00', 50, '2026-01-01T00:00:00Z'),
+        (${ids.b}, 'Sort B', ${seller.id}, ${parentId}, 0, '30.00', 0, '2026-03-01T00:00:00Z'),
+        (${ids.c}, 'Sort C', ${seller.id}, ${childId}, 2, '80.00', 0, '2026-02-01T00:00:00Z')
+    `;
+
+    const raters: string[] = [];
+    for (let index = 0; index < 3; index += 1) {
+      const id = randomUUID();
+      await client`INSERT INTO "user" (id, name, email) VALUES (${id}, 'Rater', ${testEmail()})`;
+      raters.push(id);
+    }
+    await client`
+      INSERT INTO ratings (user_id, product_id, product_name, score)
+      VALUES
+        (${raters[0]}, ${ids.a}, 'Sort A', 5),
+        (${raters[1]}, ${ids.a}, 'Sort A', 4),
+        (${raters[2]}, ${ids.c}, 'Sort C', 3)
+    `;
+
+    const orderId = randomUUID();
+    orderIds.push(orderId);
+    await client`INSERT INTO orders (id, user_id, total_amount) VALUES (${orderId}, ${owner.userId}, '260.00')`;
+    await client`
+      INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price)
+      VALUES (${orderId}, ${ids.b}, 'Sort B', 7, '30.00'), (${orderId}, ${ids.a}, 'Sort A', 1, '50.00')
+    `;
+    return { seller, parentId, childId, ids };
+  }
+
+  async function listNames(query: string) {
+    const response = await request(app.getHttpServer())
+      .get(`/products?${query}`)
+      .expect(200);
+    return (response.body as { name: string }[]).map(({ name }) => name);
+  }
+
+  it('sorts by effective price, rating, newest and popularity', async () => {
+    const { seller } = await seedCatalog();
+    const base = `sellerId=${seller.id}`;
+
+    expect(await listNames(`${base}&sort=price_asc`)).toEqual([
+      'Sort B',
+      'Sort A',
+      'Sort C',
+    ]);
+    expect(await listNames(`${base}&sort=price_desc`)).toEqual([
+      'Sort C',
+      'Sort A',
+      'Sort B',
+    ]);
+    expect(await listNames(`${base}&sort=rating`)).toEqual([
+      'Sort A',
+      'Sort C',
+      'Sort B',
+    ]);
+    expect(await listNames(`${base}&sort=newest`)).toEqual([
+      'Sort B',
+      'Sort C',
+      'Sort A',
+    ]);
+    expect(await listNames(`${base}&sort=popular`)).toEqual([
+      'Sort B',
+      'Sort A',
+      'Sort C',
+    ]);
+  });
+
+  it('filters by discounted price range, discount, stock and parent category', async () => {
+    const { seller, parentId, childId } = await seedCatalog();
+    const base = `sellerId=${seller.id}&sort=price_asc`;
+
+    expect(await listNames(`${base}&minPrice=40&maxPrice=60`)).toEqual([
+      'Sort A',
+    ]);
+    expect(await listNames(`${base}&discounted=true`)).toEqual(['Sort A']);
+    expect(await listNames(`${base}&inStock=true`)).toEqual([
+      'Sort A',
+      'Sort C',
+    ]);
+    expect(await listNames(`${base}&inStock=false`)).toEqual([
+      'Sort B',
+      'Sort A',
+      'Sort C',
+    ]);
+    expect(await listNames(`${base}&categoryId=${parentId}`)).toEqual([
+      'Sort B',
+      'Sort A',
+      'Sort C',
+    ]);
+    expect(await listNames(`${base}&categoryId=${childId}`)).toEqual([
+      'Sort A',
+      'Sort C',
+    ]);
+  });
+
+  it('returns the average rating and review count for lists and single products', async () => {
+    const { seller, ids } = await seedCatalog();
+    const list = await request(app.getHttpServer())
+      .get(`/products?sellerId=${seller.id}&sort=price_asc`)
+      .expect(200);
+    expect(
+      (
+        list.body as {
+          name: string;
+          averageRating: number | null;
+          ratingCount: number;
+          deliveryDays: number;
+          badge: string | null;
+        }[]
+      ).map(({ name, averageRating, ratingCount, deliveryDays, badge }) => ({
+        name,
+        averageRating,
+        ratingCount,
+        deliveryDays,
+        badge,
+      })),
+    ).toEqual([
+      {
+        name: 'Sort B',
+        averageRating: null,
+        ratingCount: 0,
+        deliveryDays: 3,
+        badge: null,
+      },
+      {
+        name: 'Sort A',
+        averageRating: 4.5,
+        ratingCount: 2,
+        deliveryDays: 3,
+        badge: null,
+      },
+      {
+        name: 'Sort C',
+        averageRating: 3,
+        ratingCount: 1,
+        deliveryDays: 3,
+        badge: null,
+      },
+    ]);
+    const single = await request(app.getHttpServer())
+      .get(`/products/${ids.a}`)
+      .expect(200);
+    expect(single.body).toMatchObject({ averageRating: 4.5, ratingCount: 2 });
+  });
+
+  it.each([
+    'minPrice=60&maxPrice=40',
+    'sort=cheapest',
+    'discounted=yes',
+    'maxPrice=-1',
+  ])('rejects an invalid catalog query: %s', async (query) => {
+    await request(app.getHttpServer()).get(`/products?${query}`).expect(400);
+  });
+
+  it('keeps categories two levels deep', async () => {
+    const admin = await signedInAdmin();
+    const parentId = await createCategory();
+    const child = await request(app.getHttpServer())
+      .post('/categories')
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: `Test child ${randomUUID()}`, parentId })
+      .expect(201);
+    const childId = responseId(child);
+    categoryIds.unshift(childId);
+    expect(child.body).toMatchObject({ parentId });
+
+    await request(app.getHttpServer())
+      .post('/categories')
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: `Test grandchild ${randomUUID()}`, parentId: childId })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/categories')
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .send({ name: `Test orphan ${randomUUID()}`, parentId: randomUUID() })
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete(`/categories/${parentId}`)
+      .set('Cookie', admin.cookie)
+      .set('Origin', 'http://localhost:3000')
+      .expect(409);
   });
 });

@@ -10,7 +10,13 @@ export function queryMock<T>(rows: T[]) {
     values: jest.fn(),
     set: jest.fn<unknown, [unknown]>(),
     returning: jest.fn(),
+    leftJoin: jest.fn(),
+    groupBy: jest.fn(),
+    as: jest.fn(),
   });
+  query.leftJoin.mockReturnValue(query);
+  query.groupBy.mockReturnValue(query);
+  query.as.mockReturnValue(query);
   query.from.mockReturnValue(query);
   query.where.mockReturnValue(query);
   query.orderBy.mockReturnValue(query);

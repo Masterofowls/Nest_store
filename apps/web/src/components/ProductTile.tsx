@@ -7,8 +7,11 @@ import {
     useGetProductImagesQuery,
     useGetProductRatingsQuery,
 } from "@/shared/api/baseApi";
+import TileCartControl from "@/features/cart/ui/TileCartControl";
 import ProductPrice from "./ProductPrice";
+import { badgeLabel, deliveryLabel, reviewCountLabel } from "./productLabels";
 import { StarIcon } from "./StoreIcons";
+import TileFavouriteToggle from "./TileFavouriteToggle";
 
 type ProductTileProps = {
     product: Product;
@@ -30,11 +33,16 @@ export default function ProductTile({
         isLoading: isLoadingRatings,
         isError: isRatingError,
         refetch: refetchRatings,
-    } = useGetProductRatingsQuery(product.id);
+    } = useGetProductRatingsQuery(product.id, {
+        skip: product.ratingCount !== undefined,
+    });
     const firstImage = images?.[0];
-    // The ratings endpoint returns only the latest few reviews, so the tile
-    // shows the newest score rather than an average it cannot compute.
+    // Without server stats (e.g. recommendations), fall back to the newest
+    // review score; the ratings endpoint returns only the latest few.
     const latestRating = ratings?.[0];
+    const badge = badgeLabel(product.badge);
+    const delivery =
+        product.stockQuantity > 0 ? deliveryLabel(product.deliveryDays) : null;
 
     return (
         <article className="group relative flex h-full flex-col gap-2">
@@ -71,6 +79,15 @@ export default function ProductTile({
                         No product image available.
                     </p>
                 )}
+                {badge && (
+                    <span className="absolute top-2 left-2 rounded-md bg-store-ink px-2 py-0.5 text-xs font-semibold text-white">
+                        {badge}
+                    </span>
+                )}
+                <TileFavouriteToggle
+                    productId={product.id}
+                    productName={product.name}
+                />
             </div>
 
             <ProductPrice
@@ -88,7 +105,19 @@ export default function ProductTile({
             </h3>
 
             <div className="mt-auto flex flex-col gap-0.5 text-xs text-store-muted">
-                {isLoadingRatings ? (
+                {product.ratingCount !== undefined ? (
+                    product.averageRating != null && product.ratingCount > 0 ? (
+                        <p className="flex items-center gap-1">
+                            <StarIcon className="size-3.5 text-store-rating" />
+                            <span className="font-semibold text-store-ink">
+                                {product.averageRating.toFixed(1)}
+                            </span>
+                            <span>{reviewCountLabel(product.ratingCount)}</span>
+                        </p>
+                    ) : (
+                        <p>No reviews yet.</p>
+                    )
+                ) : isLoadingRatings ? (
                     <output>Loading reviews...</output>
                 ) : isRatingError ? (
                     <p className="relative z-10" role="alert">
@@ -112,12 +141,21 @@ export default function ProductTile({
                 ) : (
                     <p>No reviews yet.</p>
                 )}
+                {delivery && (
+                    <p className="font-medium text-store-primary">{delivery}</p>
+                )}
                 <p>
                     {product.stockQuantity > 0
                         ? `${product.stockQuantity} in stock`
                         : "Out of stock"}
                 </p>
             </div>
+
+            <TileCartControl
+                productId={product.id}
+                productName={product.name}
+                stockQuantity={product.stockQuantity}
+            />
         </article>
     );
 }

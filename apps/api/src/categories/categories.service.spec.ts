@@ -11,6 +11,7 @@ import { queryMock } from '../../test/query.mock';
 const category: Category = {
   id: '00000000-0000-4000-8000-000000000003',
   name: 'Keyboards',
+  parentId: null,
 };
 
 describe('CategoriesService', () => {

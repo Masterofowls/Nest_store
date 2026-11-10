@@ -329,6 +329,37 @@ export const baseApi = createApi({
             }),
             transformResponse: (response: unknown) => parseRatingList(response),
         }),
+        getProductReviews: builder.query<RatingList, string>({
+            query: (productId) => ({
+                url: `products/${parseId(productId)}/ratings`,
+                params: { page: 1, limit: 100 },
+            }),
+            transformResponse: (response: unknown) => parseRatingList(response),
+        }),
+        // One cache entry per filter set; each new page is appended to it.
+        getProductFeed: builder.query<
+            ProductList,
+            ProductQuery & { page: number }
+        >({
+            query: (params) => ({
+                url: "products",
+                params: productQuerySchema.parse(params),
+            }),
+            transformResponse: (response: unknown) =>
+                parseProductList(response),
+            serializeQueryArgs: ({ queryArgs }) => {
+                const { page: _page, ...filters } = queryArgs;
+                return filters;
+            },
+            merge: (cached, incoming, { arg }) => {
+                if (arg.page === 1) return incoming;
+                const seen = new Set(cached.map((product) => product.id));
+                cached.push(...incoming.filter((item) => !seen.has(item.id)));
+            },
+            forceRefetch: ({ currentArg, previousArg }) =>
+                currentArg?.page !== previousArg?.page,
+            providesTags: ["Management", "SellerManagement"],
+        }),
     }),
 });
 
@@ -343,6 +374,8 @@ export const {
     useGetProductsQuery,
     useGetProductImagesQuery,
     useGetProductRatingsQuery,
+    useGetProductReviewsQuery,
+    useGetProductFeedQuery,
     useGetCartQuery,
     useAddCartItemMutation,
     useUpdateCartItemMutation,

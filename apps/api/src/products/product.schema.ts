@@ -1,11 +1,46 @@
 import { z } from 'zod';
 import { paginationFields } from '../common/pagination.schema';
 
-export const productQuerySchema = z.strictObject({
-  ...paginationFields,
-  categoryId: z.uuid().optional(),
-  sellerId: z.uuid().optional(),
-});
+export const productSortValues = [
+  'popular',
+  'price_asc',
+  'price_desc',
+  'rating',
+  'newest',
+] as const;
+export type ProductSort = (typeof productSortValues)[number];
+
+export const productBadgeValues = ['bestseller', 'low_price'] as const;
+
+const priceFilter = z
+  .string()
+  .regex(
+    /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/,
+    'Price filter must be a decimal from 0 to 99999999.99',
+  );
+
+const booleanFlag = z
+  .enum(['true', 'false'])
+  .transform((value) => value === 'true');
+
+export const productQuerySchema = z
+  .strictObject({
+    ...paginationFields,
+    categoryId: z.uuid().optional(),
+    sellerId: z.uuid().optional(),
+    sort: z.enum(productSortValues).optional(),
+    minPrice: priceFilter.optional(),
+    maxPrice: priceFilter.optional(),
+    discounted: booleanFlag.optional(),
+    inStock: booleanFlag.optional(),
+  })
+  .refine(
+    (query) =>
+      query.minPrice === undefined ||
+      query.maxPrice === undefined ||
+      Number(query.minPrice) <= Number(query.maxPrice),
+    { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] },
+  );
 export type ProductQuery = z.infer<typeof productQuerySchema>;
 
 export const createProductSchema = z.strictObject({
@@ -20,6 +55,8 @@ export const createProductSchema = z.strictObject({
     ),
   description: z.string().trim().max(5_000).nullable().optional(),
   discountPercent: z.number().int().min(0).max(100).optional(),
+  deliveryDays: z.number().int().min(0).max(60).optional(),
+  badge: z.enum(productBadgeValues).nullable().optional(),
 });
 
 export const updateProductSchema = createProductSchema
