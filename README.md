@@ -23,6 +23,8 @@ tests and the non-mutating format check remain separate commands.
 
 The development server listens on http://localhost:3000 by default.
 
+The web app uses Tailwind CSS and Aceternity UI for the storefront and
+management screens. Aceternity components are installed from its registry.
 
 ### Database schema
 
@@ -126,11 +128,11 @@ npm exec --workspace apps/api -- drizzle-kit migrate --config drizzle.test.confi
 ### Backend stages
 
 Implemented: admin permissions, categories, product images/storage, cart,
-orders without payment, favourites/ratings, account operations and
-views/recommendations. The next stage is frontend work.
-Fake payments, broader admin management, auth completion, and operational
-setup are deferred until after frontend work; complete deployment safeguards
-before any public release.
+orders without payment, favourites/ratings, account operations,
+views/recommendations, banners, and the admin CMS API (users, orders, any
+product, stats, CSV import, JSON/CSV export). Fake payments are handled in the
+web app only; auth completion and operational setup are still pending; complete
+deployment safeguards before any public release.
 
 ### Seller and product API
 
@@ -211,6 +213,8 @@ The existing category table is reused without a new migration.
 | GET    | `/products/:productId/images`          | Public; ready images only                   |
 | POST   | `/products/:productId/images`          | Product's owning seller; multipart `file` |
 | DELETE | `/products/:productId/images/:imageId` | Product's owning seller                     |
+| POST   | `/admin/products/:productId/images`          | Admin; multipart `file`                |
+| DELETE | `/admin/products/:productId/images/:imageId` | Admin                                  |
 | POST   | `/product-images/cleanup`              | Admin; retry queued object removal          |
 
 Images are limited to eight per product and 5 MiB per upload. The server decodes
@@ -283,3 +287,73 @@ viewers yields `[]`; anonymous browsing is not recorded yet.
 
 All new writes require a valid session and the trusted `Origin` described
 above; ownership/admin checks apply independently of client-supplied fields.
+
+`/users/me` responses include `isAdmin`, which the web app uses to show the CMS.
+
+### Admin CMS API and banners
+
+| Method             | Route                       | Access                                                |
+| ------------------ | --------------------------- | ----------------------------------------------------- |
+| GET                | `/banners`                  | Public; up to 10 active banners by `sortOrder`        |
+| GET/POST           | `/admin/banners`            | Admin; list (`page`, `limit`) or create               |
+| PATCH/DELETE       | `/admin/banners/:id`        | Admin                                                 |
+| GET                | `/admin/stats`              | Admin; counts and non-cancelled revenue               |
+| GET/POST           | `/admin/users`              | Admin; `search`, `role=admin\|customer`; create      |
+| GET/PATCH/DELETE   | `/admin/users/:id`          | Admin; detail with orders; `name`, `isAdmin`, `emailVerified` |
+| GET                | `/admin/orders`             | Admin; `status`, `userId`, `page`, `limit`            |
+| GET/PATCH          | `/admin/orders/:id`         | Admin; detail; cancel with `{status: "cancelled"}`    |
+| POST               | `/admin/products`           | Admin; product fields plus `sellerId`                 |
+| PATCH/DELETE       | `/admin/products/:id`       | Admin; any seller's product                           |
+| POST               | `/admin/import/products`    | Admin; `{csv}`                                        |
+| POST               | `/admin/import/users`       | Admin; `{csv}`                                        |
+| GET                | `/admin/export/:resource`   | Admin; `products`, `categories`, `users`, `orders`, `banners`; `format=json\|csv` |
+| GET                | `/admin/export/backup`      | Admin; JSON export of store records and image links |
+| POST               | `/admin/products/bulk/delete`, `/admin/products/bulk/discount` | Admin; selected products |
+| POST               | `/seller/products/bulk/delete`, `/seller/products/bulk/discount` | Seller; owned products only |
+| POST               | `/seller/import/products`   | Seller; `{csv}`, owned products only |
+| GET                | `/seller/export/backup`     | Seller; own profile, products, categories and image links |
+
+Banner `linkUrl` must be a site path starting with `/` or an http(s) URL;
+`imageUrl` must be http(s). Admins cannot remove their own admin access or
+delete their own account. Admin-created accounts get a hashed password through
+Better Auth and no session.
+
+Imports are sent as JSON `{ "csv": "..." }` (at most 90,000 characters).
+Product CSV columns: `name,categoryId,sellerId,price,stockQuantity` plus
+optional `description,discountPercent`; all rows are validated and inserted in
+one transaction, up to 1,000 rows, or nothing is imported. User CSV columns:
+`name,email,password` plus optional `isAdmin`; up to 100 rows, existing emails
+are skipped and reported. Exports are attachments capped at 10,000 rows per
+resource; CSV cells that start with `= + - @` are prefixed with `'` so
+spreadsheets do not run them as formulas.
+
+Seller product CSV omits `sellerId`; the authenticated seller is assigned on
+the server. Both product imports are atomic. Bulk actions accept 1–100 unique
+product IDs; they fail without changes if any selected product is missing or
+not owned by the seller. Discount replaces the current percentage with an
+integer from 0 to 100. The CMS selects products on the current page.
+
+The admin JSON export contains products, categories, users, sellers, orders,
+order items, banners, carts, cart items, favourites, views, ratings and ready
+image URLs. Seller exports contain only their store, products, used categories
+and ready image URLs. Neither export includes authentication data or image
+files, and there is no restore function. They are not disaster-recovery
+backups; use separate database and storage backups for recovery.
+
+Migration `0006_banners.sql` adds the `banners` table.
+
+### Management screens
+
+The admin dashboard is available at `/admin` to accounts with admin access.
+It manages products, categories, users, orders, banners and CSV transfers.
+The shared `/seller` page loads the signed-in user's seller profile and
+products; sellers can create or edit their store and products. Admins and
+owning sellers can upload or delete product images, including when creating a
+product. If an image upload fails, the product remains saved for retry. Product
+ownership cannot be changed through the CMS. Image uploads require configured
+Supabase storage.
+Seller-specific order management is not available in the API yet.
+The dashboard displays order totals, not payments or payment status.
+
+The web development proxy uses `API_ORIGIN`. A production deployment must
+provide an equivalent `/backend` proxy before these screens can reach the API.

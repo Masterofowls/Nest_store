@@ -71,9 +71,26 @@ export const pageQuerySchema = z.strictObject({
 export const searchQuerySchema = pageQuerySchema.extend({
     search: z.string().trim().max(200).optional(),
 });
+export const productQuerySchema = searchQuerySchema.extend({
+    categoryId: z.uuid().optional(),
+    sellerId: z.uuid().optional(),
+});
 export type PageQuery = z.input<typeof pageQuerySchema>;
 export type SearchQuery = z.input<typeof searchQuerySchema>;
+export type ProductQuery = z.input<typeof productQuerySchema>;
 
 export function parseId(id: string): string {
     return z.uuid().parse(id);
+}
+
+export function getErrorStatus(error: unknown): number | undefined {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        typeof error.status === "number"
+    ) {
+        return error.status;
+    }
+    return undefined;
 }

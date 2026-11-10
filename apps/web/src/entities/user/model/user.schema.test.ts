@@ -50,8 +50,17 @@ describe("currentUserSchema", () => {
     });
 
     it("strips fields outside the current-user response", () => {
-        expect(currentUserSchema.parse({ ...user, isAdmin: true })).toEqual(
+        expect(currentUserSchema.parse({ ...user, unexpected: true })).toEqual(
             user,
         );
+    });
+
+    it("preserves the server-owned admin flag", () => {
+        expect(
+            currentUserSchema.parse({ ...user, isAdmin: true }).isAdmin,
+        ).toBe(true);
+        expect(
+            currentUserSchema.safeParse({ ...user, isAdmin: "true" }).success,
+        ).toBe(false);
     });
 });

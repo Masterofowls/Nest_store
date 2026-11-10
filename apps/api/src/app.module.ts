@@ -16,6 +16,8 @@ import { FavouritesModule } from './favourites/favourites.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { ViewsModule } from './views/views.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
+import { BannersModule } from './banners/banners.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
     RatingsModule,
     ViewsModule,
     RecommendationsModule,
+    BannersModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

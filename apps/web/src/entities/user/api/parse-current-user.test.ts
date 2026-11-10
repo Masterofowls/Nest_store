@@ -16,7 +16,7 @@ describe("parseCurrentUser", () => {
     });
 
     it("returns the parsed user without extra fields", () => {
-        expect(parseCurrentUser({ ...user, isAdmin: true })).toEqual(user);
+        expect(parseCurrentUser({ ...user, unexpected: true })).toEqual(user);
     });
 
     it.each([null, {}, "invalid"])("rejects an invalid response", (value) => {

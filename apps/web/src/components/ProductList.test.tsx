@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { HttpResponse, http } from "msw";
@@ -39,10 +39,22 @@ class RelativeRequest extends Request {
     }
 }
 
-function renderProductList() {
+function renderProductList({
+    page = 1,
+    search = "",
+    onPageChange = vi.fn<(page: number) => void>(),
+}: {
+    page?: number;
+    search?: string;
+    onPageChange?: (page: number) => void;
+} = {}) {
     return render(
         <Provider store={makeStore()}>
-            <ProductList />
+            <ProductList
+                page={page}
+                search={search}
+                onPageChange={onPageChange}
+            />
         </Provider>,
     );
 }
@@ -64,11 +76,13 @@ afterAll(() => {
 
 describe("ProductList", () => {
     it("renders product details, the first image, and individual review scores", async () => {
+        let requestedProductQuery: URLSearchParams | undefined;
         let requestedLimit: string | null = null;
         server.use(
-            http.get(`${origin}/backend/products`, () =>
-                HttpResponse.json([product]),
-            ),
+            http.get(`${origin}/backend/products`, ({ request }) => {
+                requestedProductQuery = new URL(request.url).searchParams;
+                return HttpResponse.json([product]);
+            }),
             http.get(`${origin}/backend/products/${productId}/images`, () =>
                 HttpResponse.json([
                     {
@@ -111,6 +125,9 @@ describe("ProductList", () => {
         expect(
             await screen.findByRole("heading", { name: "Keyboard" }),
         ).not.toBeNull();
+        expect(
+            screen.getByRole("link", { name: "Keyboard" }).getAttribute("href"),
+        ).toBe(`/products/${productId}`);
         expect(screen.getByText("Compact mechanical keyboard")).not.toBeNull();
         expect(screen.getByText("29.99")).not.toBeNull();
         expect(screen.getByText("4 units")).not.toBeNull();
@@ -124,6 +141,9 @@ describe("ProductList", () => {
         ).toBe("https://images.example.test/keyboard.webp");
         expect(screen.queryByText("Average rating")).toBeNull();
         expect(requestedLimit).toBe("3");
+        expect(requestedProductQuery?.get("page")).toBe("1");
+        expect(requestedProductQuery?.get("limit")).toBe("10");
+        expect(requestedProductQuery?.has("search")).toBe(false);
     });
 
     it("shows empty product image and review states", async () => {
@@ -211,5 +231,78 @@ describe("ProductList", () => {
         expect(screen.getAllByRole("button", { name: "Retry" })).toHaveLength(
             2,
         );
+    });
+
+    it("changes page when the next-page control is selected", async () => {
+        const onPageChange = vi.fn<(page: number) => void>();
+        server.use(
+            http.get(`${origin}/backend/products`, ({ request }) => {
+                const page = new URL(request.url).searchParams.get("page");
+                return HttpResponse.json(
+                    page === "2"
+                        ? [
+                              {
+                                  ...product,
+                                  id: "00000000-0000-4000-8000-000000000011",
+                                  name: "Keyboard 11",
+                              },
+                          ]
+                        : Array.from({ length: 10 }, (_, index) => ({
+                              ...product,
+                              id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+                              name: `Keyboard ${index + 1}`,
+                          })),
+                );
+            }),
+            http.get(`${origin}/backend/products/:productId/images`, () =>
+                HttpResponse.json([]),
+            ),
+            http.get(`${origin}/backend/products/:productId/ratings`, () =>
+                HttpResponse.json([]),
+            ),
+        );
+
+        renderProductList({ onPageChange });
+        await screen.findByRole("heading", { name: "Keyboard 1" });
+        const nextPageButton = await screen.findByRole("button", {
+            name: "Next page",
+        });
+        await waitFor(() => {
+            expect(nextPageButton).toHaveProperty("disabled", false);
+        });
+        await userEvent.setup().click(nextPageButton);
+
+        expect(onPageChange).toHaveBeenCalledWith(2);
+    });
+
+    it("does not offer an empty next page when the last page is full", async () => {
+        server.use(
+            http.get(`${origin}/backend/products`, ({ request }) => {
+                const page = new URL(request.url).searchParams.get("page");
+                return HttpResponse.json(
+                    page === "2"
+                        ? []
+                        : Array.from({ length: 10 }, (_, index) => ({
+                              ...product,
+                              id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+                              name: `Keyboard ${index + 1}`,
+                          })),
+                );
+            }),
+            http.get(`${origin}/backend/products/:productId/images`, () =>
+                HttpResponse.json([]),
+            ),
+            http.get(`${origin}/backend/products/:productId/ratings`, () =>
+                HttpResponse.json([]),
+            ),
+        );
+
+        renderProductList();
+        await screen.findByRole("heading", { name: "Keyboard 1" });
+        const nextPageButton = await screen.findByRole("button", {
+            name: "Next page",
+        });
+
+        expect(nextPageButton).toHaveProperty("disabled", true);
     });
 });

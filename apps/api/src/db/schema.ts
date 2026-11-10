@@ -362,6 +362,29 @@ export const ratings = pgTable(
   ],
 );
 
+export const banners = pgTable(
+  'banners',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    title: text('title').notNull(),
+    description: text('description'),
+    linkUrl: text('link_url'),
+    imageUrl: text('image_url'),
+    isActive: boolean('is_active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('banners_active_sort_idx').on(table.isActive, table.sortOrder),
+  ],
+);
+
 export type AuthUser = typeof user.$inferSelect;
 export type NewAuthUser = typeof user.$inferInsert;
 export type AuthSession = typeof session.$inferSelect;
@@ -390,3 +413,5 @@ export type ProductView = typeof productViews.$inferSelect;
 export type NewProductView = typeof productViews.$inferInsert;
 export type Rating = typeof ratings.$inferSelect;
 export type NewRating = typeof ratings.$inferInsert;
+export type Banner = typeof banners.$inferSelect;
+export type NewBanner = typeof banners.$inferInsert;

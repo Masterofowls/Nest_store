@@ -61,6 +61,35 @@ export class ImagesController {
   }
 }
 
+@Controller('admin/products/:productId/images')
+@UseGuards(SessionGuard, AdminGuard, WriteOriginGuard)
+export class AdminImagesController {
+  constructor(private readonly images: ImagesService) {}
+
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: maximumImageBytes, files: 1, fields: 0 },
+    }),
+  )
+  upload(
+    @Param('productId', new ParseUUIDPipe()) productId: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('An image file is required');
+    return this.images.uploadAsAdmin(productId, file.buffer);
+  }
+
+  @Delete(':imageId')
+  @HttpCode(204)
+  delete(
+    @Param('productId', new ParseUUIDPipe()) productId: string,
+    @Param('imageId', new ParseUUIDPipe()) imageId: string,
+  ) {
+    return this.images.deleteAsAdmin(productId, imageId);
+  }
+}
+
 @Controller('product-images/cleanup')
 export class ImageCleanupController {
   constructor(private readonly cleanup: ImageCleanupService) {}

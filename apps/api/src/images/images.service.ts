@@ -18,6 +18,7 @@ const publicFields = {
   url: productImages.url,
   createdAt: productImages.createdAt,
 };
+type ImageActor = { role: 'admin' } | { role: 'seller'; sellerId: string };
 
 @Injectable()
 export class ImagesService {
@@ -47,6 +48,14 @@ export class ImagesService {
   }
 
   async upload(productId: string, sellerId: string, bytes: Buffer) {
+    return this.uploadFor(productId, { role: 'seller', sellerId }, bytes);
+  }
+
+  async uploadAsAdmin(productId: string, bytes: Buffer) {
+    return this.uploadFor(productId, { role: 'admin' }, bytes);
+  }
+
+  private async uploadFor(productId: string, actor: ImageActor, bytes: Buffer) {
     const buffer = await prepareImage(bytes);
     const id = randomUUID();
     const path = `${productId}/${id}.webp`;
@@ -60,7 +69,7 @@ export class ImagesService {
         .where(eq(products.id, productId))
         .for('update');
       if (!product) throw new NotFoundException('Product not found');
-      if (product.sellerId !== sellerId)
+      if (actor.role === 'seller' && product.sellerId !== actor.sellerId)
         throw new ForbiddenException('Product belongs to another seller');
       const [images] = await tx
         .select({ total: count() })
@@ -123,6 +132,18 @@ export class ImagesService {
     imageId: string,
     sellerId: string,
   ): Promise<void> {
+    return this.deleteFor(productId, imageId, { role: 'seller', sellerId });
+  }
+
+  async deleteAsAdmin(productId: string, imageId: string): Promise<void> {
+    return this.deleteFor(productId, imageId, { role: 'admin' });
+  }
+
+  private async deleteFor(
+    productId: string,
+    imageId: string,
+    actor: ImageActor,
+  ): Promise<void> {
     await this.database.db.transaction(async (tx) => {
       const [product] = await tx
         .select()
@@ -130,7 +151,7 @@ export class ImagesService {
         .where(eq(products.id, productId))
         .for('update');
       if (!product) throw new NotFoundException('Product not found');
-      if (product.sellerId !== sellerId)
+      if (actor.role === 'seller' && product.sellerId !== actor.sellerId)
         throw new ForbiddenException('Product belongs to another seller');
       const deleted = await tx
         .delete(productImages)

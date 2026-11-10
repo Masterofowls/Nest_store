@@ -13,6 +13,7 @@ const publicUser = {
   email: 'collections-buyer@example.test',
   emailVerified: false,
   image: null,
+  isAdmin: false,
 };
 
 describe('UsersService account operations', () => {
@@ -57,6 +58,7 @@ describe('UsersService account operations', () => {
       email: user.email,
       emailVerified: user.emailVerified,
       image: user.image,
+      isAdmin: user.isAdmin,
     });
   });
 

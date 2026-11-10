@@ -422,6 +422,7 @@ describe('Better Auth local PostgreSQL integration', () => {
         email,
         emailVerified: false,
         image: null,
+        isAdmin: false,
       });
 
     await request(app.getHttpServer())
@@ -1126,6 +1127,55 @@ describe('Categories through Nest', () => {
       expect(
         await client`SELECT path FROM storage_cleanup WHERE path = ${path}`,
       ).toEqual([]);
+    });
+
+    it('lets an admin manage another seller’s images while rejecting non-admins', async () => {
+      const { productId, bytes } = await fixture();
+      const admin = await signedInAdmin();
+      const buyer = await signedInBuyer();
+      const path = `/admin/products/${productId}/images`;
+      await request(app.getHttpServer())
+        .post(path)
+        .attach('file', bytes, 'photo.png')
+        .expect(401);
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', buyer.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(403);
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', admin.cookie)
+        .attach('file', bytes, 'photo.png')
+        .expect(403);
+      await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', admin.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', Buffer.from('not an image'), 'photo.png')
+        .expect(400);
+      const response = await request(app.getHttpServer())
+        .post(path)
+        .set('Cookie', admin.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .attach('file', bytes, 'photo.png')
+        .expect(201);
+      const imageId = responseId(response);
+      await request(app.getHttpServer())
+        .delete(`${path}/${imageId}`)
+        .set('Cookie', buyer.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(403);
+      await request(app.getHttpServer())
+        .delete(`${path}/${imageId}`)
+        .set('Cookie', admin.cookie)
+        .set('Origin', 'http://localhost:3000')
+        .expect(204);
+      await request(app.getHttpServer())
+        .get(`/products/${productId}/images`)
+        .expect(200)
+        .expect([]);
     });
 
     it('rejects unauthenticated, foreign seller and invalid uploads before storage writes', async () => {

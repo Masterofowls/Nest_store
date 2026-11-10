@@ -6,6 +6,7 @@ export const currentUserSchema = z.object({
     email: z.string(),
     emailVerified: z.boolean(),
     image: z.string().nullable(),
+    isAdmin: z.boolean().optional(),
 });
 
 export type CurrentUser = z.infer<typeof currentUserSchema>;

@@ -43,6 +43,13 @@
       "when": 1794166816261,
       "tag": "0005_storage_cleanup_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794322615273,
+      "tag": "0006_banners",
+      "breakpoints": true
     }
   ]
 }

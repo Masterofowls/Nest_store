@@ -445,6 +445,7 @@ describe('AppController (e2e)', () => {
           email: 'buyer@example.test',
           emailVerified: false,
           image: null,
+          isAdmin: false,
         });
       expect(lookup).toHaveBeenCalledTimes(1);
     } finally {

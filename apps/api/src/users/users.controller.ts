@@ -35,6 +35,7 @@ export class UsersController {
       email: user.email,
       emailVerified: user.emailVerified,
       image: user.image,
+      isAdmin: user.isAdmin,
     };
   }
 

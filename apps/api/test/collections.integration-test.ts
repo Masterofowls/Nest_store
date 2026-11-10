@@ -587,6 +587,7 @@ describe('Collections with real Better Auth and local PostgreSQL', () => {
       email: actor.email,
       emailVerified: false,
       image: null,
+      isAdmin: false,
     });
     const me = await request(app.getHttpServer())
       .get('/users/me')

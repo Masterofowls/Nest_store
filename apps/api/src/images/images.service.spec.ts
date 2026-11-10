@@ -104,6 +104,17 @@ describe('ImagesService', () => {
     expect(db.transaction).toHaveBeenCalledTimes(2);
   });
 
+  it('lets an admin upload and delete images for another seller', async () => {
+    product.for.mockResolvedValue([{ ...productFixture, sellerId: 'other' }]);
+    await expect(
+      service.uploadAsAdmin(productFixture.id, bytes),
+    ).resolves.toEqual(image);
+    tx.select.mockReset().mockReturnValueOnce(product);
+    await expect(
+      service.deleteAsAdmin(productFixture.id, image.id),
+    ).resolves.toBeUndefined();
+  });
+
   it.each(['missing', 'foreign', 'full'])(
     'rejects a %s product before remote upload',
     async (reason) => {

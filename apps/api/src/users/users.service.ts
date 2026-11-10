@@ -19,6 +19,7 @@ export class UsersService {
         email: user.email,
         emailVerified: user.emailVerified,
         image: user.image,
+        isAdmin: user.isAdmin,
       });
     if (!updated) {
       throw new UnauthorizedException('User account no longer exists');

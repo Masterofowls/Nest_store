@@ -18,3 +18,9 @@ export const paginationFields = {
 
 export const paginationSchema = z.strictObject(paginationFields);
 export type PaginationQuery = z.infer<typeof paginationSchema>;
+
+export const pageOnlySchema = z.strictObject({
+  page: paginationFields.page,
+  limit: paginationFields.limit,
+});
+export type PageOnlyQuery = z.infer<typeof pageOnlySchema>;

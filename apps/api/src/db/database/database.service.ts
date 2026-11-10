@@ -12,9 +12,14 @@ export class DatabaseService implements OnModuleDestroy {
 
   constructor(config: ConfigService<Environment, true>) {
     const url = config.getOrThrow('DATABASE_URL', { infer: true });
+    const hostname = new URL(url).hostname;
+    const isLoopback =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]';
 
     this.client = postgres(url, {
-      ssl: 'require',
+      ssl: isLoopback ? false : 'require',
       connect_timeout: 10,
     });
 

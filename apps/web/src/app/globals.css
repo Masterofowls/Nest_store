@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+    --color-store-primary: #1255dc;
+    --color-store-primary-hover: #0c42ae;
+    --color-store-ink: #17243b;
+    --color-store-muted: #526179;
+    --color-store-background: #f3f5f9;
+    --color-store-surface: #ffffff;
+    --color-store-border: #d6deeb;
+    --color-store-sale: #b41664;
+}
+
+@layer base {
+    body {
+        @apply bg-store-background text-store-ink antialiased;
+    }
+
+    h1 {
+        @apply text-3xl font-bold tracking-tight sm:text-4xl;
+    }
+
+    h2 {
+        @apply text-2xl font-bold tracking-tight;
+    }
+
+    h3 {
+        @apply text-lg font-semibold;
+    }
+
+    a {
+        @apply text-store-primary hover:text-store-primary-hover;
+    }
+
+    button {
+        @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-store-border bg-store-surface px-4 py-2 font-semibold text-store-ink transition-colors hover:bg-store-background disabled:opacity-50;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        @apply min-h-11 rounded-xl border border-store-border bg-store-surface px-3 py-2 text-store-ink;
+    }
+
+    table {
+        @apply w-full text-left;
+    }
+
+    th,
+    td {
+        @apply border-b border-store-border p-3;
+    }
+
+    :focus-visible {
+        outline: 3px solid var(--color-store-primary);
+        outline-offset: 3px;
+    }
+
+    button:not(:disabled),
+    a {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+}

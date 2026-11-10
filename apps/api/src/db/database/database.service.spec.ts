@@ -3,6 +3,25 @@ import type { Environment } from '../../config/env.schema';
 import { DatabaseService } from './database.service';
 
 describe('DatabaseService configuration and cleanup', () => {
+  it('disables SSL only for loopback database connections', async () => {
+    const localConfig = new ConfigService<Environment, true>({
+      DATABASE_URL: 'postgresql://localhost:5432/store_dev',
+    });
+    const remoteConfig = new ConfigService<Environment, true>({
+      DATABASE_URL: 'postgresql://db.example.test:5432/store',
+    });
+    const localService = new DatabaseService(localConfig);
+    const remoteService = new DatabaseService(remoteConfig);
+
+    try {
+      expect(localService.db.$client.options.ssl).toBe(false);
+      expect(remoteService.db.$client.options.ssl).toBe('require');
+    } finally {
+      await localService.onModuleDestroy();
+      await remoteService.onModuleDestroy();
+    }
+  });
+
   it('rejects missing database configuration', () => {
     const config = new ConfigService<Environment, true>();
     const get = jest.spyOn(config, 'get').mockReturnValue(undefined);
