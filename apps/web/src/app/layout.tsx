@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
+import StoreProvider from "./StoreProvider";
 
 export const metadata: Metadata = {
     title: "Create Next App",
@@ -8,7 +10,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
         <html lang="en">
-            <body>{children}</body>
+            <body>
+                <Suspense fallback={null}>
+                    <StoreProvider>{children}</StoreProvider>
+                </Suspense>
+            </body>
         </html>
     );
 }
