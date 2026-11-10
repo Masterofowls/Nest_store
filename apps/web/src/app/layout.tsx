@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { Onest } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -10,9 +11,15 @@ export const metadata: Metadata = {
     description: "Browse products from independent sellers.",
 };
 
+const onest = Onest({
+    subsets: ["latin", "cyrillic"],
+    display: "swap",
+    variable: "--font-onest",
+});
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
-        <html lang="en">
+        <html lang="en" className={onest.variable}>
             <body>
                 <a
                     className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"

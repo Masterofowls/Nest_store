@@ -16,9 +16,10 @@ describe("Card", () => {
                 .getByRole("link", { name: "Mechanical Keyboard" })
                 .getAttribute("href"),
         ).toBe("/products/00000000-0000-4000-8000-000000000001");
-        expect(screen.getByText("89.99")).not.toBeNull();
-        expect(screen.getByText("10%")).not.toBeNull();
-        expect(screen.getByText("24 units")).not.toBeNull();
+        expect(screen.getByText("$80.99")).not.toBeNull();
+        expect(screen.getByText("$89.99")).not.toBeNull();
+        expect(screen.getByText("−10%")).not.toBeNull();
+        expect(screen.getByText("24 in stock")).not.toBeNull();
     });
 
     it("hides a zero discount and marks an empty stock", () => {
@@ -28,7 +29,8 @@ describe("Card", () => {
             />,
         );
 
-        expect(screen.queryByText("Discount")).toBeNull();
+        expect(screen.getByText("$89.99")).not.toBeNull();
+        expect(screen.queryByText(/%/)).toBeNull();
         expect(screen.getByText("Out of stock")).not.toBeNull();
     });
 });

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { useId } from "react";
-import { BackgroundGradient } from "./ui/background-gradient";
 
 type BannerProps = {
     title: string;
@@ -18,20 +17,20 @@ export default function Banner({
     const headingId = useId();
 
     return (
-        <section aria-labelledby={headingId} className="my-8">
-            <BackgroundGradient
-                animate={false}
-                className="rounded-3xl bg-store-surface p-6 sm:p-10"
-            >
+        <section
+            aria-labelledby={headingId}
+            className="my-8 flex flex-col gap-4 rounded-panel bg-store-primary-soft p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+        >
+            <div>
                 <h2 id={headingId}>{title}</h2>
-                <p className="mt-3 max-w-2xl text-store-muted">{description}</p>
-                <Link
-                    className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-store-primary px-5 font-semibold text-white hover:bg-store-primary-hover hover:text-white"
-                    href={href}
-                >
-                    {actionLabel}
-                </Link>
-            </BackgroundGradient>
+                <p className="mt-2 max-w-2xl text-store-muted">{description}</p>
+            </div>
+            <Link
+                className="inline-flex min-h-11 shrink-0 items-center self-start rounded-tile bg-store-primary px-5 font-semibold text-white hover:bg-store-primary-hover hover:text-white sm:self-center"
+                href={href}
+            >
+                {actionLabel}
+            </Link>
         </section>
     );
 }

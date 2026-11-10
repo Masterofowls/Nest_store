@@ -73,17 +73,12 @@ afterAll(() => {
 });
 
 describe("Dashboard", () => {
-    it("shows search above products and resets pagination after searching", async () => {
+    it("pages through all products without a search filter", async () => {
         server.use(
             http.get(`${origin}/backend/products`, ({ request }) => {
                 const url = new URL(request.url);
                 const page = url.searchParams.get("page");
-                const search = url.searchParams.get("search");
-                requests.push({ page, search });
-
-                if (search) {
-                    return HttpResponse.json(makeProducts("Mouse", 1, 10));
-                }
+                requests.push({ page, search: url.searchParams.get("search") });
 
                 return HttpResponse.json(
                     page === "2"
@@ -105,12 +100,7 @@ describe("Dashboard", () => {
         expect(
             await screen.findByRole("heading", { name: "Keyboard 1" }),
         ).not.toBeNull();
-        const searchForm = screen.getByRole("form", {
-            name: "Search products",
-        });
-        expect(
-            searchForm.compareDocumentPosition(screen.getByRole("list")),
-        ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(screen.queryByRole("searchbox")).toBeNull();
 
         const nextPageButton = screen.getByRole("button", {
             name: "Next page",
@@ -123,22 +113,7 @@ describe("Dashboard", () => {
             await screen.findByRole("heading", { name: "Keyboard 11" }),
         ).not.toBeNull();
         expect(screen.getByText("Page 2")).not.toBeNull();
-
-        await user.type(
-            screen.getByRole("searchbox", { name: "Search products" }),
-            "mouse",
-        );
-        await user.click(screen.getByRole("button", { name: "Search" }));
-
-        expect(
-            await screen.findByRole("heading", { name: "Mouse 1" }),
-        ).not.toBeNull();
-        expect(screen.getByText("Page 1")).not.toBeNull();
-        expect(
-            requests.some(
-                (request) => request.page === "1" && request.search === "mouse",
-            ),
-        ).toBe(true);
+        expect(requests.every((request) => request.search === null)).toBe(true);
     });
 
     it("disables Previous page on the first page", async () => {

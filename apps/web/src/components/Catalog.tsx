@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import { useGetProductsQuery } from "@/shared/api/baseApi";
-import Card from "./Card";
 import Filters from "./Filters";
+import ProductTile from "./ProductTile";
 import Search from "./Search";
 
 const catalogPageSize = 12;
 
-export default function Catalog() {
-    const [search, setSearch] = useState("");
+type CatalogProps = {
+    initialSearch?: string;
+};
+
+export default function Catalog({ initialSearch = "" }: CatalogProps) {
+    const [search, setSearch] = useState(initialSearch);
     const [categoryId, setCategoryId] = useState("");
     const [page, setPage] = useState(1);
     const filters = {
@@ -44,7 +48,7 @@ export default function Catalog() {
             <h1 id="catalog-heading" className="mb-5">
                 Catalog
             </h1>
-            <Search onSearch={handleSearch} />
+            <Search onSearch={handleSearch} initialSearch={initialSearch} />
             <Filters
                 categoryId={categoryId}
                 onCategoryChange={handleCategoryChange}
@@ -70,10 +74,10 @@ export default function Catalog() {
                 {products && products.length > 0 && (
                     <>
                         {isFetching && <output>Updating products…</output>}
-                        <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                        <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                             {products.map((product) => (
                                 <li className="min-w-0" key={product.id}>
-                                    <Card product={product} />
+                                    <ProductTile product={product} />
                                 </li>
                             ))}
                         </ul>

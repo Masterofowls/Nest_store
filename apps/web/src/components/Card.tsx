@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Product } from "@/entities/product/model/product.schema";
+import ProductPrice from "./ProductPrice";
 
 type CardProps = {
     product: Product;
@@ -7,35 +8,24 @@ type CardProps = {
 
 export default function Card({ product }: CardProps) {
     return (
-        <article className="h-full rounded-2xl bg-store-surface p-4 transition-transform duration-200 motion-safe:hover:-translate-y-1">
-            <h3>
+        <article className="relative flex h-full flex-col gap-2 rounded-tile bg-store-tile p-3">
+            <ProductPrice
+                price={product.price}
+                discountPercent={product.discountPercent}
+            />
+            <h3 className="line-clamp-2 text-sm leading-snug font-normal">
                 <Link
-                    className="text-store-ink hover:text-store-primary"
+                    className="text-store-ink after:absolute after:inset-0 after:rounded-tile hover:text-store-primary"
                     href={`/products/${product.id}`}
                 >
                     {product.name}
                 </Link>
             </h3>
-            <dl className="mt-3 space-y-2 text-sm text-store-muted">
-                <div>
-                    <dt>Price</dt>
-                    <dd>{product.price}</dd>
-                </div>
-                {product.discountPercent > 0 && (
-                    <div>
-                        <dt>Discount</dt>
-                        <dd>{product.discountPercent}%</dd>
-                    </div>
-                )}
-                <div>
-                    <dt>Stock</dt>
-                    <dd>
-                        {product.stockQuantity > 0
-                            ? `${product.stockQuantity} units`
-                            : "Out of stock"}
-                    </dd>
-                </div>
-            </dl>
+            <p className="mt-auto text-xs text-store-muted">
+                {product.stockQuantity > 0
+                    ? `${product.stockQuantity} in stock`
+                    : "Out of stock"}
+            </p>
         </article>
     );
 }

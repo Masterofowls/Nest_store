@@ -75,7 +75,7 @@ afterAll(() => {
 });
 
 describe("ProductList", () => {
-    it("renders product details, the first image, and individual review scores", async () => {
+    it("renders product details, the first image, and the latest review score", async () => {
         let requestedProductQuery: URLSearchParams | undefined;
         let requestedLimit: string | null = null;
         server.use(
@@ -128,12 +128,12 @@ describe("ProductList", () => {
         expect(
             screen.getByRole("link", { name: "Keyboard" }).getAttribute("href"),
         ).toBe(`/products/${productId}`);
-        expect(screen.getByText("Compact mechanical keyboard")).not.toBeNull();
-        expect(screen.getByText("29.99")).not.toBeNull();
-        expect(screen.getByText("4 units")).not.toBeNull();
-        expect(screen.getByText("10%")).not.toBeNull();
-        expect(await screen.findByText("Score: 4 out of 5")).not.toBeNull();
-        expect(await screen.findByText("Solid keyboard.")).not.toBeNull();
+        expect(screen.getByText("$26.99")).not.toBeNull();
+        expect(screen.getByText("$29.99")).not.toBeNull();
+        expect(screen.getByText("4 in stock")).not.toBeNull();
+        expect(screen.getByText("−10%")).not.toBeNull();
+        expect(await screen.findByText("latest review")).not.toBeNull();
+        expect(screen.getByText("4")).not.toBeNull();
         expect(
             (
                 await screen.findByRole("img", { name: "Image of Keyboard" })
@@ -164,13 +164,11 @@ describe("ProductList", () => {
         renderProductList();
 
         expect(
-            await screen.findByText("No description provided."),
-        ).not.toBeNull();
-        expect(
             await screen.findByText("No product image available."),
         ).not.toBeNull();
         expect(await screen.findByText("No reviews yet.")).not.toBeNull();
-        expect(screen.getByText("0%")).not.toBeNull();
+        expect(screen.getByText("$29.99")).not.toBeNull();
+        expect(screen.queryByText(/%/)).toBeNull();
     });
 
     it("offers a retry when the product request fails", async () => {

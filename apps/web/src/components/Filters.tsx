@@ -19,8 +19,8 @@ export default function Filters({
     } = useGetCategoriesQuery();
 
     return (
-        <fieldset className="mb-6 rounded-2xl bg-store-surface p-4">
-            <legend className="text-lg font-semibold">Filters</legend>
+        <fieldset className="mb-6 flex flex-wrap items-center gap-2 rounded-tile bg-store-tile px-4 py-3">
+            <legend className="sr-only">Filters</legend>
             <label className="mr-3 font-medium" htmlFor="category-filter">
                 Category
             </label>
