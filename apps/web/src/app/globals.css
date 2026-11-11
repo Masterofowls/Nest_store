@@ -2,22 +2,33 @@
 
 @theme {
     --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+    --font-display:
+        var(--font-unbounded), var(--font-onest), ui-sans-serif, system-ui,
+        sans-serif;
 
-    --color-store-primary: #005bff;
-    --color-store-primary-hover: #0049d1;
-    --color-store-primary-soft: #e5efff;
-    --color-store-ink: #001a34;
-    --color-store-muted: #5a6b7d;
-    --color-store-background: #ffffff;
+    --color-store-primary: #4b1d6b;
+    --color-store-primary-hover: #3a1554;
+    --color-store-primary-soft: #efe3f5;
+    --color-store-ink: #2a1633;
+    --color-store-muted: #6f5d76;
+    --color-store-background: #fbf4f1;
     --color-store-surface: #ffffff;
-    --color-store-tile: #f2f3f5;
-    --color-store-border: #d9dee5;
-    --color-store-sale: #e0004d;
-    --color-store-sale-soft: #ffe5ee;
-    --color-store-rating: #ffa800;
+    --color-store-tile: #f1e3ea;
+    --color-store-border: #dccbd6;
+    /* Deep coral: 4.5:1 as text on background and tile, and under white text. */
+    --color-store-sale: #b8390a;
+    --color-store-sale-soft: #ffe6dc;
+    /* Bright coral is for fills only; pair it with store-accent-ink text. */
+    --color-store-accent: #ff6a3d;
+    --color-store-accent-ink: #3a1206;
+    --color-store-danger: #b3261e;
+    --color-store-rating: #e89400;
 
-    --radius-tile: 0.75rem;
-    --radius-panel: 1.25rem;
+    --radius-control: 9999px;
+    --radius-tile: 1.25rem;
+    --radius-panel: 1.75rem;
+
+    --shadow-panel: 0 2px 16px rgb(42 22 51 / 0.1);
 }
 
 @layer base {
@@ -25,12 +36,13 @@
         @apply bg-store-background font-sans text-store-ink antialiased;
     }
 
+    /* Unbounded is wide, so display sizes sit one step below the old scale. */
     h1 {
-        @apply text-2xl font-bold tracking-tight sm:text-3xl;
+        @apply font-display text-xl leading-tight font-semibold tracking-tight sm:text-[1.625rem];
     }
 
     h2 {
-        @apply text-xl font-bold tracking-tight sm:text-2xl;
+        @apply font-display text-lg leading-tight font-semibold tracking-tight sm:text-xl;
     }
 
     h3 {
@@ -42,13 +54,16 @@
     }
 
     button {
-        @apply inline-flex min-h-11 items-center justify-center rounded-tile border-0 bg-store-tile px-4 py-2 font-semibold text-store-ink transition-colors hover:bg-store-border disabled:opacity-50;
+        @apply inline-flex min-h-11 items-center justify-center rounded-control border-0 bg-store-tile px-5 py-2 font-semibold text-store-ink transition-colors hover:bg-store-border disabled:opacity-50;
     }
 
     input:not([type="checkbox"]):not([type="radio"]),
-    select,
+    select {
+        @apply min-h-11 rounded-control border border-store-border bg-store-surface px-4 py-2 text-store-ink;
+    }
+
     textarea {
-        @apply min-h-11 rounded-tile border border-store-border bg-store-surface px-3 py-2 text-store-ink;
+        @apply min-h-11 rounded-tile border border-store-border bg-store-surface px-4 py-2 text-store-ink;
     }
 
     table {

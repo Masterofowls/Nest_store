@@ -107,6 +107,9 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
+// Transliterates Cyrillic so Russian product names still give readable URLs.
+const PRODUCT_SLUG_SQL = `coalesce(nullif(trim(both '-' from regexp_replace(translate(replace(replace(replace(replace(replace(replace(replace(replace(lower("name"), 'ж', 'zh'), 'ч', 'ch'), 'ш', 'sh'), 'щ', 'sch'), 'ю', 'yu'), 'я', 'ya'), 'ё', 'yo'), 'х', 'kh'), 'абвгдезийклмнопрстуфцыэъь', 'abvgdezijklmnoprstufcye'), '[^a-z0-9]+', '-', 'g')), ''), 'item') || '-' || right("id"::text, 8)`;
+
 export const categories = pgTable(
   'categories',
   {
@@ -126,6 +129,44 @@ export const productBadge = pgEnum('product_badge', [
   'bestseller',
   'low_price',
 ]);
+
+export const attributeType = pgEnum('attribute_type', [
+  'text',
+  'number',
+  'boolean',
+]);
+
+export const brands = pgTable('brands', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// category_id is a hint for product forms: the attribute is offered for that
+// category and its subcategories. Null means it is offered everywhere.
+export const attributes = pgTable(
+  'attributes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    categoryId: uuid('category_id').references(() => categories.id, {
+      onDelete: 'set null',
+    }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    type: attributeType('type').notNull(),
+    unit: text('unit'),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => [
+    index('attributes_category_id_idx').on(table.categoryId),
+    check(
+      'attributes_slug_format',
+      sql`${table.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`,
+    ),
+  ],
+);
 
 export const sellerProfiles = pgTable(
   'seller_profiles',
@@ -157,6 +198,14 @@ export const products = pgTable(
     categoryId: uuid('category_id')
       .notNull()
       .references(() => categories.id),
+    brandId: uuid('brand_id').references(() => brands.id, {
+      onDelete: 'set null',
+    }),
+    // Products sharing a group are variants of one item (for example colours).
+    variantGroupId: uuid('variant_group_id'),
+    // Derived from name and id so every insert path gets one. The id suffix
+    // keeps it unique and lets a renamed product still resolve from old links.
+    slug: text('slug').notNull().generatedAlwaysAs(sql.raw(PRODUCT_SLUG_SQL)),
     description: text('description'),
     stockQuantity: integer('stock_quantity').notNull(),
     price: numeric('price', { precision: 10, scale: 2 }).notNull(),
@@ -171,6 +220,9 @@ export const products = pgTable(
     index('products_seller_id_idx').on(table.sellerId),
     index('products_category_id_idx').on(table.categoryId),
     index('products_created_at_idx').on(table.createdAt),
+    index('products_brand_id_idx').on(table.brandId),
+    index('products_variant_group_id_idx').on(table.variantGroupId),
+    uniqueIndex('products_slug_unique').on(table.slug),
     check(
       'products_delivery_days_range',
       sql`${table.deliveryDays} BETWEEN 0 AND 60`,
@@ -180,6 +232,32 @@ export const products = pgTable(
     check(
       'products_discount_percent_range',
       sql`${table.discountPercent} BETWEEN 0 AND 100`,
+    ),
+  ],
+);
+
+export const productAttributeValues = pgTable(
+  'product_attribute_values',
+  {
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    attributeId: uuid('attribute_id')
+      .notNull()
+      .references(() => attributes.id, { onDelete: 'cascade' }),
+    valueText: text('value_text'),
+    valueNumber: numeric('value_number', { precision: 12, scale: 3 }),
+    valueBoolean: boolean('value_boolean'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.attributeId] }),
+    index('product_attribute_values_attribute_idx').on(
+      table.attributeId,
+      table.valueText,
+    ),
+    check(
+      'product_attribute_values_one_value',
+      sql`num_nonnulls(${table.valueText}, ${table.valueNumber}, ${table.valueBoolean}) = 1`,
     ),
   ],
 );
@@ -440,5 +518,10 @@ export type ProductView = typeof productViews.$inferSelect;
 export type NewProductView = typeof productViews.$inferInsert;
 export type Rating = typeof ratings.$inferSelect;
 export type NewRating = typeof ratings.$inferInsert;
+export type Brand = typeof brands.$inferSelect;
+export type NewBrand = typeof brands.$inferInsert;
+export type Attribute = typeof attributes.$inferSelect;
+export type NewAttribute = typeof attributes.$inferInsert;
+export type ProductAttributeValue = typeof productAttributeValues.$inferSelect;
 export type Banner = typeof banners.$inferSelect;
 export type NewBanner = typeof banners.$inferInsert;

@@ -105,7 +105,7 @@ export default function Checkout() {
             {items.length > 0 && (
                 <>
                     <section
-                        className="mb-6 rounded-2xl bg-store-surface p-6"
+                        className="mb-6 rounded-panel bg-store-surface p-6"
                         aria-labelledby="checkout-summary-heading"
                     >
                         <h2 id="checkout-summary-heading">Order summary</h2>

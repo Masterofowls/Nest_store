@@ -19,8 +19,11 @@ import type {
 import type { CategoryList } from "@/entities/category/model/category.schema";
 import { parseProductList } from "@/entities/product/api/parse-product-list";
 import {
-    productSchema,
-    type Product,
+    productDetailListSchema,
+    productDetailSchema,
+    productFacetsSchema,
+    type ProductDetail,
+    type ProductFacets,
     type ProductList,
 } from "@/entities/product/model/product.schema";
 import { parseProductImageList } from "@/entities/product-image/api/product-image.api";
@@ -50,10 +53,13 @@ import {
 } from "@/entities/user/model/user.schema";
 import {
     parseId,
+    parseProductReference,
     parseResponse,
     productQuerySchema,
     type ProductQuery,
 } from "./response";
+
+export const MAX_COMPARED_PRODUCTS = 4;
 
 export const baseApi = createApi({
     reducerPath: "baseApi",
@@ -161,10 +167,39 @@ export const baseApi = createApi({
             transformResponse: (response: unknown) =>
                 parseRecommendationList(response),
         }),
-        getProduct: builder.query<Product, string>({
-            query: (productId) => `products/${parseId(productId)}`,
+        getProduct: builder.query<ProductDetail, string>({
+            query: (reference) =>
+                `products/${parseProductReference(reference)}`,
             transformResponse: (response: unknown) =>
-                parseResponse(productSchema, response, "product"),
+                parseResponse(productDetailSchema, response, "product"),
+            providesTags: ["Management", "SellerManagement"],
+        }),
+        getProductFacets: builder.query<ProductFacets, ProductQuery>({
+            query: (params) => ({
+                url: "products/facets",
+                params: productQuerySchema.parse(params),
+            }),
+            transformResponse: (response: unknown) =>
+                parseResponse(productFacetsSchema, response, "product facets"),
+            providesTags: ["Management", "SellerManagement"],
+        }),
+        getComparedProducts: builder.query<ProductDetail[], string[]>({
+            query: (ids) => ({
+                url: "products/compare",
+                params: {
+                    ids: ids
+                        .slice(0, MAX_COMPARED_PRODUCTS)
+                        .map(parseId)
+                        .join(","),
+                },
+            }),
+            transformResponse: (response: unknown) =>
+                parseResponse(
+                    productDetailListSchema,
+                    response,
+                    "compared products",
+                ),
+            providesTags: ["Management", "SellerManagement"],
         }),
         getProducts: builder.query<ProductList, ProductQuery>({
             query: (params) => ({
@@ -371,6 +406,8 @@ export const {
     useGetCategoriesQuery,
     useGetProductRecommendationsQuery,
     useGetProductQuery,
+    useGetProductFacetsQuery,
+    useGetComparedProductsQuery,
     useGetProductsQuery,
     useGetProductImagesQuery,
     useGetProductRatingsQuery,

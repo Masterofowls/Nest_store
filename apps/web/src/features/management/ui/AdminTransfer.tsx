@@ -56,7 +56,7 @@ export default function AdminTransfer({
                 </p>
             )}
             <form
-                className="my-4 flex flex-wrap items-end gap-3 rounded-2xl bg-store-surface p-4"
+                className="my-4 flex flex-wrap items-end gap-3 rounded-panel bg-store-surface p-4"
                 onSubmit={(event) => void submit(event)}
             >
                 {mode === "admin" && (
@@ -135,7 +135,7 @@ export default function AdminTransfer({
                 This export cannot restore the database.
             </p>
             <a
-                className="inline-flex min-h-11 items-center rounded-xl border border-store-border bg-store-surface px-4 font-semibold"
+                className="inline-flex min-h-11 items-center rounded-control border border-store-border bg-store-surface px-4 font-semibold"
                 href={`/backend/${mode}/export/backup`}
                 download
             >

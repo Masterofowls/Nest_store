@@ -23,11 +23,26 @@ const product: Product = {
   description: null,
   deliveryDays: 3,
   badge: null,
+  brandId: null,
+  variantGroupId: null,
+  slug: 'keyboard-00000001',
   createdAt: new Date('2026-11-10T00:00:00.000Z'),
 };
 
-const listedRow = { ...product, averageRating: '4.5', ratingCount: 2 };
-const listedProduct = { ...product, averageRating: 4.5, ratingCount: 2 };
+const listedRow = {
+  ...product,
+  averageRating: '4.5',
+  ratingCount: 2,
+  brandName: null as string | null,
+  imageUrl: null,
+};
+const listedProduct = {
+  ...product,
+  averageRating: 4.5,
+  ratingCount: 2,
+  brand: null,
+  imageUrl: null,
+};
 
 describe('ProductsService database operations', () => {
   let service: ProductsService;
@@ -48,6 +63,13 @@ describe('ProductsService database operations', () => {
               insert: () => mutation,
               update: () => mutation,
               delete: () => mutation,
+              transaction: (run: (tx: unknown) => unknown) =>
+                run({
+                  select: () => select,
+                  insert: () => mutation,
+                  update: () => mutation,
+                  delete: () => mutation,
+                }),
             },
           },
         },
@@ -69,6 +91,93 @@ describe('ProductsService database operations', () => {
     await expect(service.getOrThrow(product.id)).resolves.toEqual(
       listedProduct,
     );
+  });
+
+  it('nests the brand when the product has one', async () => {
+    const brandId = '00000000-0000-4000-8000-000000000009';
+    select.where.mockReturnValue(
+      Promise.resolve([{ ...listedRow, brandId, brandName: 'Keychron' }]),
+    );
+    await expect(service.getOrThrow(product.id)).resolves.toMatchObject({
+      brandId,
+      brand: { id: brandId, name: 'Keychron' },
+    });
+  });
+
+  it('resolves a product by slug with its attributes and no variants', async () => {
+    await expect(service.findDetail(product.slug)).resolves.toMatchObject({
+      id: product.id,
+      variants: [],
+    });
+  });
+
+  it('does not guess when an id suffix matches two products', async () => {
+    select.where.mockReturnValue(Promise.resolve([listedRow, listedRow]));
+    await expect(service.findDetail('renamed-00000001')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('rejects a slug without an id suffix that matches nothing', async () => {
+    select.where.mockReturnValue(Promise.resolve([]));
+    await expect(service.findDetail('no-such-product')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(select.where).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a product as its own variant', async () => {
+    await expect(
+      service.patchProduct(
+        { variantOfProductId: product.id },
+        product.id,
+        product.sellerId,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects an attribute value for an unknown attribute', async () => {
+    select.where.mockReturnValue(Promise.resolve([]));
+    await expect(
+      service.patchProduct(
+        {
+          attributes: [
+            {
+              attributeId: '00000000-0000-4000-8000-000000000007',
+              value: 'black',
+            },
+          ],
+        },
+        product.id,
+        product.sellerId,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects an attribute value of the wrong type', async () => {
+    const attributeId = '00000000-0000-4000-8000-000000000007';
+    select.where.mockReturnValue(
+      Promise.resolve([{ id: attributeId, type: 'number' }]),
+    );
+    await expect(
+      service.patchProduct(
+        { attributes: [{ attributeId, value: 'heavy' }] },
+        product.id,
+        product.sellerId,
+      ),
+    ).rejects.toThrow('Attribute value must be a number');
+  });
+
+  it('maps a missing brand to a validation error', async () => {
+    mutation.returning.mockRejectedValue({
+      cause: {
+        code: '23503',
+        constraint_name: 'products_brand_id_brands_id_fk',
+      },
+    });
+    await expect(
+      service.postProduct(product, product.sellerId),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects an unknown product', async () => {

@@ -18,6 +18,8 @@ import { ViewsModule } from './views/views.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { BannersModule } from './banners/banners.module';
 import { AdminModule } from './admin/admin.module';
+import { BrandsModule } from './brands/brands.module';
+import { AttributesModule } from './attributes/attributes.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { AdminModule } from './admin/admin.module';
     RecommendationsModule,
     BannersModule,
     AdminModule,
+    BrandsModule,
+    AttributesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

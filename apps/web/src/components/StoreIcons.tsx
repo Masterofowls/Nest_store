@@ -96,6 +96,15 @@ export function TruckIcon(props: IconProps) {
     );
 }
 
+export function ScaleIcon(props: IconProps) {
+    return (
+        <IconFrame {...props}>
+            <path d="M12 4v16M7 20h10M5 7h14" />
+            <path d="m5 7-2.5 6a2.7 2.7 0 0 0 5 0ZM19 7l-2.5 6a2.7 2.7 0 0 0 5 0Z" />
+        </IconFrame>
+    );
+}
+
 export function StarIcon(props: IconProps) {
     return (
         <IconFrame fill="currentColor" stroke="none" {...props}>

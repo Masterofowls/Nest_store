@@ -44,7 +44,7 @@ export default function Login() {
                 aria-label="Sign in"
                 noValidate
                 onSubmit={handleSubmit}
-                className="rounded-2xl bg-store-surface p-6"
+                className="rounded-panel bg-store-surface p-6"
             >
                 <label className="mb-2 block font-medium" htmlFor="login-email">
                     Email

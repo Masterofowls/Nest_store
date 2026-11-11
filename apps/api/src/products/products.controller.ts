@@ -23,11 +23,14 @@ import type { SellerRequest } from '../sellers/seller-request';
 import { requestSellerId } from '../sellers/seller-request';
 import { ZodValidationPipe } from '../common/pipes/zod-validation/zod-validation.pipe';
 import {
+  compareQuerySchema,
   createProductSchema,
   productQuerySchema,
+  productReferenceSchema,
   updateProductSchema,
 } from './product.schema';
 import type {
+  CompareQuery,
   CreateProductInput,
   ProductQuery,
   UpdateProductInput,
@@ -43,9 +46,28 @@ export class ProductsController {
   ) {
     return this.productsService.findAll(query);
   }
-  @Get(':id')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.productsService.getOrThrow(id);
+
+  // Filters apply; paging and sorting do not.
+  @Get('facets')
+  findFacets(
+    @Query(new ZodValidationPipe(productQuerySchema)) query: ProductQuery,
+  ) {
+    return this.productsService.findFacets(query);
+  }
+
+  @Get('compare')
+  findCompared(
+    @Query(new ZodValidationPipe(compareQuerySchema)) query: CompareQuery,
+  ) {
+    return this.productsService.findCompared(query.ids);
+  }
+
+  @Get(':reference')
+  findOne(
+    @Param('reference', new ZodValidationPipe(productReferenceSchema))
+    reference: string,
+  ) {
+    return this.productsService.findDetail(reference);
   }
 
   @Post()

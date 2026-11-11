@@ -80,14 +80,14 @@ export default function HeaderSearch() {
                 <form
                     action="/catalog"
                     method="get"
-                    className="flex min-w-0 flex-1 rounded-tile border-2 border-store-primary bg-store-surface"
+                    className="flex min-w-0 flex-1 rounded-control border-2 border-store-primary bg-store-surface"
                     onSubmit={() => setIsOpen(false)}
                 >
                     <label htmlFor="site-search" className="sr-only">
                         Search the store
                     </label>
                     <input
-                        className="min-h-10 min-w-0 flex-1 rounded-tile border-0 bg-transparent px-3 text-base focus-visible:outline-offset-0"
+                        className="min-h-10 min-w-0 flex-1 rounded-control border-0 bg-transparent px-4 text-base focus-visible:outline-offset-0"
                         id="site-search"
                         name="search"
                         type="search"
@@ -112,7 +112,7 @@ export default function HeaderSearch() {
                         onKeyDown={handleKeyDown}
                     />
                     <button
-                        className="m-0.5 min-h-10 min-w-11 rounded-[calc(var(--radius-tile)-2px)] bg-store-primary px-3 text-white hover:bg-store-primary-hover"
+                        className="m-0.5 min-h-10 min-w-11 rounded-control bg-store-primary px-4 text-white hover:bg-store-primary-hover"
                         type="submit"
                     >
                         <SearchIcon className="size-5" />

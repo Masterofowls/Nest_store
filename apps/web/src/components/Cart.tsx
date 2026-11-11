@@ -69,7 +69,7 @@ export default function Cart() {
                             try again.
                         </p>
                     )}
-                    <div className="overflow-x-auto rounded-2xl bg-store-surface">
+                    <div className="overflow-x-auto rounded-panel bg-store-surface">
                         <table className="min-w-[700px]">
                             <thead>
                                 <tr>

@@ -86,6 +86,10 @@ export const productQuerySchema = searchQuerySchema.extend({
     maxPrice: priceFilter,
     discounted: z.literal("true").optional(),
     inStock: z.literal("true").optional(),
+    // Comma-separated brand ids and "slug:value|value;slug:value"; built by
+    // the catalog facet helpers.
+    brandIds: z.string().min(1).max(740).optional(),
+    attrs: z.string().min(1).max(2_000).optional(),
 });
 export type PageQuery = z.input<typeof pageQuerySchema>;
 export type SearchQuery = z.input<typeof searchQuerySchema>;
@@ -93,6 +97,19 @@ export type ProductQuery = z.input<typeof productQuerySchema>;
 
 export function parseId(id: string): string {
     return z.uuid().parse(id);
+}
+
+const productReferenceSchema = z.union([
+    z.uuid(),
+    z
+        .string()
+        .max(300)
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+]);
+
+// A product page address holds either the product id or its slug.
+export function parseProductReference(reference: string): string {
+    return productReferenceSchema.parse(reference);
 }
 
 export function getErrorStatus(error: unknown): number | undefined {

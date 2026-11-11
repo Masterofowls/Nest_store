@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Onest } from "next/font/google";
+import { Onest, Unbounded } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -18,9 +18,15 @@ const onest = Onest({
     variable: "--font-onest",
 });
 
+const unbounded = Unbounded({
+    subsets: ["latin", "cyrillic"],
+    display: "swap",
+    variable: "--font-unbounded",
+});
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
-        <html lang="en" className={onest.variable}>
+        <html lang="en" className={`${onest.variable} ${unbounded.variable}`}>
             <body className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
                 <a
                     className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"

@@ -31,7 +31,7 @@ export default function ProductPrice({
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="sr-only">Price</span>
             <strong
-                className={`text-xl leading-tight font-bold ${hasDiscount ? "text-store-sale" : "text-store-ink"}`}
+                className={`font-display text-lg leading-tight font-semibold tracking-tight ${hasDiscount ? "text-store-sale" : "text-store-ink"}`}
             >
                 {current}
             </strong>
@@ -41,7 +41,7 @@ export default function ProductPrice({
                         <span className="sr-only">Was </span>
                         {original}
                     </s>
-                    <span className="rounded-md bg-store-sale px-1.5 py-0.5 text-xs font-bold text-white">
+                    <span className="rounded-control bg-store-sale px-2 py-0.5 text-xs font-bold text-white">
                         −{discountPercent}%
                     </span>
                 </>

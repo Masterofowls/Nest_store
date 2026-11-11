@@ -1,5 +1,8 @@
 import Link from "next/link";
-import type { Product } from "@/entities/product/model/product.schema";
+import {
+    productHref,
+    type Product,
+} from "@/entities/product/model/product.schema";
 import ProductPrice from "./ProductPrice";
 
 type CardProps = {
@@ -16,7 +19,7 @@ export default function Card({ product }: CardProps) {
             <h3 className="line-clamp-2 text-sm leading-snug font-normal">
                 <Link
                     className="text-store-ink after:absolute after:inset-0 after:rounded-tile hover:text-store-primary"
-                    href={`/products/${product.id}`}
+                    href={productHref(product)}
                 >
                     {product.name}
                 </Link>

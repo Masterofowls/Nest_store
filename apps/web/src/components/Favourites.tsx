@@ -51,7 +51,7 @@ export default function Favourites() {
                 <ul className="grid gap-3">
                     {favouritesQuery.data.map((item) => (
                         <li
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-store-surface p-4"
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-panel bg-store-surface p-4"
                             key={item.id}
                         >
                             {item.productId ? (

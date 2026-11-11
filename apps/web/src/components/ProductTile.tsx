@@ -2,7 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { Product } from "@/entities/product/model/product.schema";
+import {
+    productHref,
+    type Product,
+} from "@/entities/product/model/product.schema";
+import CompareToggle from "@/features/compare/ui/CompareToggle";
 import {
     useGetProductImagesQuery,
     useGetProductRatingsQuery,
@@ -12,6 +16,9 @@ import ProductPrice from "./ProductPrice";
 import { badgeLabel, deliveryLabel, reviewCountLabel } from "./productLabels";
 import { StarIcon } from "./StoreIcons";
 import TileFavouriteToggle from "./TileFavouriteToggle";
+
+// At or below this many units the tile says how few are left.
+const LOW_STOCK_LIMIT = 10;
 
 type ProductTileProps = {
     product: Product;
@@ -27,7 +34,9 @@ export default function ProductTile({
         isLoading: isLoadingImages,
         isError: isImageError,
         refetch: refetchImages,
-    } = useGetProductImagesQuery(product.id);
+    } = useGetProductImagesQuery(product.id, {
+        skip: product.imageUrl !== undefined,
+    });
     const {
         data: ratings,
         isLoading: isLoadingRatings,
@@ -36,7 +45,9 @@ export default function ProductTile({
     } = useGetProductRatingsQuery(product.id, {
         skip: product.ratingCount !== undefined,
     });
-    const firstImage = images?.[0];
+    const imageUrl = product.imageUrl ?? images?.[0]?.url;
+    const isLowStock =
+        product.stockQuantity > 0 && product.stockQuantity <= LOW_STOCK_LIMIT;
     // Without server stats (e.g. recommendations), fall back to the newest
     // review score; the ratings endpoint returns only the latest few.
     const latestRating = ratings?.[0];
@@ -47,9 +58,9 @@ export default function ProductTile({
     return (
         <article className="group relative flex h-full flex-col gap-2">
             <div className="relative aspect-[3/4] overflow-hidden rounded-tile bg-store-tile">
-                {firstImage ? (
+                {imageUrl ? (
                     <Image
-                        src={firstImage.url}
+                        src={imageUrl}
                         alt={`Image of ${product.name}`}
                         fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 240px"
@@ -80,13 +91,18 @@ export default function ProductTile({
                     </p>
                 )}
                 {badge && (
-                    <span className="absolute top-2 left-2 rounded-md bg-store-ink px-2 py-0.5 text-xs font-semibold text-white">
+                    <span className="absolute top-3 left-3 -rotate-3 rounded-control bg-store-accent px-2.5 py-0.5 text-xs font-semibold text-store-accent-ink">
                         {badge}
                     </span>
                 )}
                 <TileFavouriteToggle
                     productId={product.id}
                     productName={product.name}
+                />
+                <CompareToggle
+                    productId={product.id}
+                    productName={product.name}
+                    variant="icon"
                 />
             </div>
 
@@ -95,14 +111,21 @@ export default function ProductTile({
                 discountPercent={product.discountPercent}
             />
 
-            <h3 className="line-clamp-2 text-sm leading-snug font-normal">
-                <Link
-                    className="text-store-ink after:absolute after:inset-0 after:rounded-tile hover:text-store-primary"
-                    href={`/products/${product.id}`}
-                >
-                    {product.name}
-                </Link>
-            </h3>
+            <div>
+                {product.brand && (
+                    <p className="text-xs font-semibold text-store-muted">
+                        {product.brand.name}
+                    </p>
+                )}
+                <h3 className="line-clamp-2 text-sm leading-snug font-normal">
+                    <Link
+                        className="text-store-ink after:absolute after:inset-0 after:rounded-tile hover:text-store-primary"
+                        href={productHref(product)}
+                    >
+                        {product.name}
+                    </Link>
+                </h3>
+            </div>
 
             <div className="mt-auto flex flex-col gap-0.5 text-xs text-store-muted">
                 {product.ratingCount !== undefined ? (
@@ -144,11 +167,12 @@ export default function ProductTile({
                 {delivery && (
                     <p className="font-medium text-store-primary">{delivery}</p>
                 )}
-                <p>
-                    {product.stockQuantity > 0
-                        ? `${product.stockQuantity} in stock`
-                        : "Out of stock"}
-                </p>
+                {isLowStock && (
+                    <p className="font-medium text-store-sale">
+                        Only {product.stockQuantity} left
+                    </p>
+                )}
+                {product.stockQuantity === 0 && <p>Out of stock</p>}
             </div>
 
             <TileCartControl

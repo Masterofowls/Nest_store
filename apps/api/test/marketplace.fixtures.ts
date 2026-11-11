@@ -23,6 +23,9 @@ export const productFixture: Product = {
   description: null,
   deliveryDays: 3,
   badge: null,
+  brandId: null,
+  variantGroupId: null,
+  slug: 'mechanical-keyboard-00000001',
   createdAt: date,
 };
 

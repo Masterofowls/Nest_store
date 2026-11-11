@@ -26,7 +26,7 @@ export default function Banner({
                 <p className="mt-2 max-w-2xl text-store-muted">{description}</p>
             </div>
             <Link
-                className="inline-flex min-h-11 shrink-0 items-center self-start rounded-tile bg-store-primary px-5 font-semibold text-white hover:bg-store-primary-hover hover:text-white sm:self-center"
+                className="inline-flex min-h-11 shrink-0 items-center self-start rounded-control bg-store-primary px-5 font-semibold text-white hover:bg-store-primary-hover hover:text-white sm:self-center"
                 href={href}
             >
                 {actionLabel}

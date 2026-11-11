@@ -1,6 +1,12 @@
 "use client";
 
 import { type FormEvent, useId, useState } from "react";
+import type { ProductFacets } from "@/entities/product/model/product.schema";
+import {
+    type AttributeSelection,
+    isSelectableValue,
+    toggleValue,
+} from "@/features/catalog/model/facetParams";
 import { useGetCategoriesQuery } from "@/shared/api/baseApi";
 import { groupCategories } from "./CatalogMenu";
 
@@ -10,16 +16,55 @@ export type CatalogFilters = {
     maxPrice: string;
     discounted: boolean;
     inStock: boolean;
+    brandIds: string[];
+    attributes: AttributeSelection;
 };
 
 type FiltersProps = {
     filters: CatalogFilters;
+    // Brand and attribute options for the current search and category.
+    facets?: ProductFacets;
     onChange: (changes: Partial<CatalogFilters>) => void;
 };
 
+type FacetAttribute = ProductFacets["attributes"][number];
+
+function optionLabel(attribute: FacetAttribute, value: string) {
+    if (attribute.type === "boolean") return value === "true" ? "Yes" : "No";
+    return attribute.unit ? `${value} ${attribute.unit}` : value;
+}
+
+function FacetOption({
+    label,
+    count,
+    checked,
+    onToggle,
+}: {
+    label: string;
+    count: number;
+    checked: boolean;
+    onToggle: () => void;
+}) {
+    return (
+        <label className="flex min-h-11 items-center gap-2">
+            <input
+                className="size-5 shrink-0 accent-store-primary"
+                type="checkbox"
+                checked={checked}
+                onChange={onToggle}
+            />
+            <span className="min-w-0 flex-1 break-words">{label}</span>
+            <span className="text-sm text-store-muted">
+                <span className="sr-only">, products: </span>
+                {count}
+            </span>
+        </label>
+    );
+}
+
 const pricePattern = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/;
 
-export default function Filters({ filters, onChange }: FiltersProps) {
+export default function Filters({ filters, facets, onChange }: FiltersProps) {
     const {
         data: categories,
         isLoading,
@@ -171,6 +216,62 @@ export default function Filters({ filters, onChange }: FiltersProps) {
                     In stock only
                 </label>
             </fieldset>
+
+            {facets && facets.brands.length > 0 && (
+                <fieldset className="flex flex-col">
+                    <legend className="mb-1.5 font-semibold">Brand</legend>
+                    {facets.brands.map((brand) => (
+                        <FacetOption
+                            key={brand.id}
+                            label={brand.name}
+                            count={brand.count}
+                            checked={filters.brandIds.includes(brand.id)}
+                            onToggle={() =>
+                                onChange({
+                                    brandIds: toggleValue(
+                                        filters.brandIds,
+                                        brand.id,
+                                    ),
+                                })
+                            }
+                        />
+                    ))}
+                </fieldset>
+            )}
+
+            {facets?.attributes.map((attribute) => {
+                const options = attribute.options.filter((option) =>
+                    isSelectableValue(option.value),
+                );
+                if (options.length === 0) return null;
+                const selected = filters.attributes[attribute.slug] ?? [];
+                return (
+                    <fieldset className="flex flex-col" key={attribute.slug}>
+                        <legend className="mb-1.5 font-semibold">
+                            {attribute.name}
+                        </legend>
+                        {options.map((option) => (
+                            <FacetOption
+                                key={option.value}
+                                label={optionLabel(attribute, option.value)}
+                                count={option.count}
+                                checked={selected.includes(option.value)}
+                                onToggle={() =>
+                                    onChange({
+                                        attributes: {
+                                            ...filters.attributes,
+                                            [attribute.slug]: toggleValue(
+                                                selected,
+                                                option.value,
+                                            ),
+                                        },
+                                    })
+                                }
+                            />
+                        ))}
+                    </fieldset>
+                );
+            })}
         </div>
     );
 }

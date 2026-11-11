@@ -51,7 +51,8 @@ export default function ProductItem({ productId }: ProductItemProps) {
         isLoading: isLoadingImages,
         isError: isImageError,
         refetch: refetchImages,
-    } = useGetProductImagesQuery(productId);
+        // The address may hold a slug, so images wait for the product's id.
+    } = useGetProductImagesQuery(product?.id ?? "", { skip: !product });
     const [selectedImage, setSelectedImage] = useState({
         productId,
         index: 0,
@@ -102,7 +103,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
                             </a>
                         ) : null}
                         {badgeLabel(product.badge) && (
-                            <span className="rounded-md bg-store-ink px-2 py-0.5 text-xs font-semibold text-white">
+                            <span className="rounded-control bg-store-accent px-2.5 py-0.5 text-xs font-semibold text-store-accent-ink">
                                 {badgeLabel(product.badge)}
                             </span>
                         )}
@@ -189,7 +190,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
                             aria-label="Buy"
                             className="flex flex-col gap-4 self-start lg:sticky lg:top-40 lg:col-start-3 lg:row-start-1"
                         >
-                            <div className="flex flex-col gap-3 rounded-panel bg-store-surface p-5 shadow-[0_2px_16px_rgb(0_26_52/0.1)]">
+                            <div className="flex flex-col gap-3 rounded-panel bg-store-surface p-5 shadow-panel">
                                 <ProductPrice
                                     price={product.price}
                                     discountPercent={product.discountPercent}

@@ -2,6 +2,10 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { z } from "zod";
 import Catalog from "@/components/Catalog";
+import {
+    parseAttributeSelection,
+    parseBrandIds,
+} from "@/features/catalog/model/facetParams";
 
 export const metadata: Metadata = { title: "Catalog" };
 
@@ -19,11 +23,16 @@ async function CatalogWithSearch({
         ? category
         : "";
 
+    const brands = readParam(params.brands);
+    const attrs = readParam(params.attrs);
+
     return (
         <Catalog
-            key={`${initialSearch}|${initialCategoryId}`}
+            key={`${initialSearch}|${initialCategoryId}|${brands}|${attrs}`}
             initialSearch={initialSearch}
             initialCategoryId={initialCategoryId}
+            initialBrandIds={parseBrandIds(brands)}
+            initialAttributes={parseAttributeSelection(attrs)}
         />
     );
 }

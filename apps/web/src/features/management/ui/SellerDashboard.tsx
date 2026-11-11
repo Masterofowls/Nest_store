@@ -74,7 +74,7 @@ export default function SellerDashboard() {
             )}
             {seller.isSuccess && (
                 <>
-                    <section className="my-6 rounded-2xl bg-store-surface p-5">
+                    <section className="my-6 rounded-panel bg-store-surface p-5">
                         <h2>
                             {seller.data
                                 ? "Store profile"

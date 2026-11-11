@@ -168,6 +168,8 @@ type ListedProduct = Omit<Product, 'createdAt'> & {
   createdAt: string;
   averageRating: number | null;
   ratingCount: number;
+  brand: { id: string; name: string } | null;
+  imageUrl: string | null;
 };
 
 async function createApiCategory(
@@ -799,6 +801,14 @@ describe('Seller profiles and owned products through Nest', () => {
         price: Number(input.price).toFixed(2),
         deliveryDays: 3,
         badge: null,
+        brandId: null,
+        variantGroupId: null,
+        slug: `${input.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')}-${id.slice(-8)}`,
+        brand: null,
+        imageUrl: null,
         createdAt: (response.body as { createdAt: string }).createdAt,
         averageRating: null,
         ratingCount: 0,
@@ -842,7 +852,15 @@ describe('Seller profiles and owned products through Nest', () => {
     await request(app.getHttpServer())
       .get(`/products/${items[0].id}`)
       .expect(200)
-      .expect(items[0]);
+      .expect({ ...items[0], attributes: [], variants: [] });
+    await request(app.getHttpServer())
+      .get(`/products/${items[2].slug}`)
+      .expect(200)
+      .expect({ ...items[2], attributes: [], variants: [] });
+    await request(app.getHttpServer())
+      .get(`/products/old-name-${items[2].id.slice(-8)}`)
+      .expect(200)
+      .expect({ ...items[2], attributes: [], variants: [] });
     await request(app.getHttpServer())
       .get(`/sellers?search=${encodeURIComponent(seller.storeName)}&limit=1`)
       .expect(200)

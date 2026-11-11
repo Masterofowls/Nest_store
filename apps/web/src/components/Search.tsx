@@ -27,7 +27,7 @@ export default function Search({ onSearch, initialSearch = "" }: SearchProps) {
             >
                 Search products
             </label>
-            <div className="flex rounded-tile border-2 border-store-primary bg-store-surface p-0.5">
+            <div className="flex rounded-control border-2 border-store-primary bg-store-surface p-0.5">
                 <input
                     className="min-w-0 flex-1 border-0 bg-transparent px-3 text-base focus-visible:outline-offset-0"
                     id="product-search"
@@ -37,7 +37,7 @@ export default function Search({ onSearch, initialSearch = "" }: SearchProps) {
                     onChange={(event) => setSearch(event.currentTarget.value)}
                 />
                 <button
-                    className="rounded-[calc(var(--radius-tile)-2px)] bg-store-primary px-5 text-white hover:bg-store-primary-hover"
+                    className="rounded-control bg-store-primary px-5 text-white hover:bg-store-primary-hover"
                     type="submit"
                 >
                     Search

@@ -60,7 +60,7 @@ export default function CatalogMenu() {
         <div ref={containerRef} className="contents">
             <button
                 ref={buttonRef}
-                className="min-h-11 shrink-0 gap-2 rounded-tile bg-store-primary px-4 text-white hover:bg-store-primary-hover"
+                className="min-h-11 shrink-0 gap-2 rounded-control bg-store-primary px-4 text-white hover:bg-store-primary-hover"
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={panelId}

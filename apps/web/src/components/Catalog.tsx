@@ -2,7 +2,17 @@
 
 import { useId, useState } from "react";
 import type { ProductSort } from "@/entities/product/model/product.schema";
-import { useGetProductsQuery } from "@/shared/api/baseApi";
+import {
+    type AttributeSelection,
+    serializeAttributeSelection,
+    serializeBrandIds,
+} from "@/features/catalog/model/facetParams";
+import {
+    useGetCategoriesQuery,
+    useGetProductFacetsQuery,
+    useGetProductsQuery,
+} from "@/shared/api/baseApi";
+import Breadcrumbs, { categoryCrumbs } from "./Breadcrumbs";
 import Filters, { type CatalogFilters } from "./Filters";
 import ProductTile from "./ProductTile";
 import Search from "./Search";
@@ -21,11 +31,32 @@ const sortOptions: { value: ProductSort | ""; label: string }[] = [
 type CatalogProps = {
     initialSearch?: string;
     initialCategoryId?: string;
+    initialBrandIds?: string[];
+    initialAttributes?: AttributeSelection;
 };
+
+// Keeps brand and attribute choices in the address so a filtered catalog can
+// be shared or reloaded, without a navigation that would refetch the page.
+function writeFacetsToAddress(
+    brands: string | undefined,
+    attrs: string | undefined,
+) {
+    const url = new URL(window.location.href);
+    for (const [name, value] of [
+        ["brands", brands],
+        ["attrs", attrs],
+    ] as const) {
+        if (value) url.searchParams.set(name, value);
+        else url.searchParams.delete(name);
+    }
+    window.history.replaceState(window.history.state, "", url);
+}
 
 export default function Catalog({
     initialSearch = "",
     initialCategoryId = "",
+    initialBrandIds = [],
+    initialAttributes = {},
 }: CatalogProps) {
     const [search, setSearch] = useState(initialSearch);
     const [sort, setSort] = useState<ProductSort | "">("");
@@ -35,20 +66,31 @@ export default function Catalog({
         maxPrice: "",
         discounted: false,
         inStock: false,
+        brandIds: initialBrandIds,
+        attributes: initialAttributes,
     });
     const [page, setPage] = useState(1);
     const [showFilters, setShowFilters] = useState(false);
     const filtersPanelId = useId();
-    const query = {
-        limit: catalogPageSize,
+    const baseQuery = {
         search: search || undefined,
         categoryId: filters.categoryId || undefined,
-        sort: sort || undefined,
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
         discounted: filters.discounted ? ("true" as const) : undefined,
         inStock: filters.inStock ? ("true" as const) : undefined,
     };
+    const query = {
+        ...baseQuery,
+        limit: catalogPageSize,
+        sort: sort || undefined,
+        brandIds: serializeBrandIds(filters.brandIds),
+        attrs: serializeAttributeSelection(filters.attributes),
+    };
+    const { data: facets } = useGetProductFacetsQuery(baseQuery);
+    const { data: categories } = useGetCategoriesQuery();
+    // Ends with the open category, or with "Catalog" when none is chosen.
+    const trail = categoryCrumbs(categories, filters.categoryId || undefined);
     const {
         currentData: products,
         isFetching,
@@ -67,12 +109,29 @@ export default function Catalog({
     }
 
     function handleFiltersChange(changes: Partial<CatalogFilters>) {
-        setFilters((current) => ({ ...current, ...changes }));
+        const next = { ...filters, ...changes };
+        // Attribute options belong to a category, so a selection made in one
+        // category would silently empty the list in another.
+        if (
+            changes.categoryId !== undefined &&
+            changes.categoryId !== filters.categoryId
+        ) {
+            next.attributes = {};
+        }
+        setFilters(next);
         setPage(1);
+        writeFacetsToAddress(
+            serializeBrandIds(next.brandIds),
+            serializeAttributeSelection(next.attributes),
+        );
     }
 
     return (
         <section aria-labelledby="catalog-heading">
+            <Breadcrumbs
+                crumbs={trail.slice(0, -1)}
+                current={trail.at(-1)?.label}
+            />
             <h1 id="catalog-heading" className="mb-5">
                 Catalog
             </h1>
@@ -91,10 +150,11 @@ export default function Catalog({
                     </button>
                     <div
                         id={filtersPanelId}
-                        className={`${showFilters ? "block" : "hidden"} mt-3 rounded-tile bg-store-tile p-4 lg:sticky lg:top-40 lg:mt-0 lg:block`}
+                        className={`${showFilters ? "block" : "hidden"} mt-3 rounded-tile bg-store-surface p-4 lg:sticky lg:top-40 lg:mt-0 lg:block`}
                     >
                         <Filters
                             filters={filters}
+                            facets={facets}
                             onChange={handleFiltersChange}
                         />
                     </div>

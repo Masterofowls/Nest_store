@@ -48,7 +48,7 @@ export default function Signup() {
                 Create an account
             </h1>
             <form
-                className="rounded-2xl bg-store-surface p-6"
+                className="rounded-panel bg-store-surface p-6"
                 aria-label="Create an account"
                 noValidate
                 onSubmit={handleSubmit}

@@ -48,7 +48,7 @@ export default function PublicBanners() {
                             )}
                             {banner.linkUrl && (
                                 <Link
-                                    className="mt-3 inline-flex min-h-11 items-center rounded-tile bg-white px-4 font-semibold text-store-ink hover:text-store-primary"
+                                    className="mt-3 inline-flex min-h-11 items-center rounded-control bg-store-surface px-5 font-semibold text-store-ink hover:text-store-primary"
                                     href={banner.linkUrl}
                                 >
                                     View {banner.title}

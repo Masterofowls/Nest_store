@@ -27,7 +27,7 @@ function ShortcutLink({
 }: ShortcutLinkProps) {
     return (
         <Link
-            className="relative flex min-h-11 min-w-11 flex-col items-center justify-center rounded-tile px-1.5 text-store-ink hover:text-store-primary sm:px-2"
+            className="relative flex min-h-11 min-w-11 flex-col items-center justify-center rounded-control px-1.5 text-store-ink hover:text-store-primary sm:px-2"
             href={href}
         >
             <Icon className="size-6" />
@@ -59,7 +59,7 @@ export default function Header() {
         <header className="relative z-30 border-b border-store-border bg-store-surface sm:sticky sm:top-0">
             <div className="mx-auto grid max-w-[1440px] grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 px-4 py-3 sm:px-6 lg:grid-cols-[auto_auto_1fr_auto] lg:gap-x-4 lg:px-8">
                 <Link
-                    className="text-xl font-extrabold tracking-tight text-store-primary hover:text-store-primary-hover sm:text-2xl"
+                    className="font-display text-lg font-bold tracking-tight text-store-primary hover:text-store-primary-hover sm:text-xl"
                     href="/"
                 >
                     Online Store
@@ -177,7 +177,7 @@ export default function Header() {
             <CategoryChips />
             {isError && (
                 <p
-                    className="mx-auto max-w-[1440px] px-4 pb-3 text-red-700"
+                    className="mx-auto max-w-[1440px] px-4 pb-3 text-store-danger"
                     role="alert"
                 >
                     Couldn't check your session.{" "}
@@ -188,7 +188,7 @@ export default function Header() {
             )}
             {isSignOutError && (
                 <p
-                    className="mx-auto max-w-[1440px] px-4 pb-3 text-red-700"
+                    className="mx-auto max-w-[1440px] px-4 pb-3 text-store-danger"
                     role="alert"
                 >
                     Couldn't sign out. Try again.

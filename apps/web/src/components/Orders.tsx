@@ -47,7 +47,7 @@ export default function Orders() {
                 <ul className="grid gap-3">
                     {ordersQuery.data.map((order) => (
                         <li
-                            className="rounded-2xl bg-store-surface p-4"
+                            className="rounded-panel bg-store-surface p-4"
                             key={order.id}
                         >
                             <h2 className="break-all text-lg">

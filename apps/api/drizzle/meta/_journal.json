@@ -57,6 +57,13 @@
       "when": 1794328128357,
       "tag": "0007_catalog_sorting_badges",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794357747688,
+      "tag": "0008_catalog_model",
+      "breakpoints": true
     }
   ]
 }

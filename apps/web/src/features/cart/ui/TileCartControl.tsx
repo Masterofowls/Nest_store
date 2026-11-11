@@ -16,7 +16,7 @@ type TileCartControlProps = {
 };
 
 const controlClass =
-    "relative z-10 min-h-11 w-full rounded-tile text-sm font-semibold";
+    "relative z-10 min-h-11 w-full rounded-control text-sm font-semibold";
 
 export default function TileCartControl({
     productId,
@@ -47,7 +47,7 @@ export default function TileCartControl({
     if (!user) {
         return (
             <Link
-                className={`${controlClass} inline-flex items-center justify-center bg-store-primary text-white hover:bg-store-primary-hover hover:text-white`}
+                className={`${controlClass} inline-flex items-center justify-center bg-store-primary-soft text-store-primary hover:bg-store-border hover:text-store-primary-hover`}
                 href="/login"
             >
                 Sign in to buy
@@ -79,7 +79,7 @@ export default function TileCartControl({
     const quantity = cartItem.quantity;
     return (
         <div className="relative z-10">
-            <div className="flex min-h-11 items-center justify-between rounded-tile bg-store-primary-soft">
+            <div className="flex min-h-11 items-center justify-between rounded-control bg-store-primary-soft">
                 <button
                     className="min-h-11 min-w-11 bg-transparent px-0 text-lg text-store-primary hover:bg-store-border"
                     type="button"

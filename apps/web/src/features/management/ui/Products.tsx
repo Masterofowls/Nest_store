@@ -192,7 +192,7 @@ export default function Products({
                 <ul className="my-4 grid gap-2">
                     {products.map((product) => (
                         <li
-                            className="rounded-xl bg-store-surface p-3"
+                            className="rounded-tile bg-store-surface p-3"
                             key={product.id}
                         >
                             <input
@@ -222,7 +222,7 @@ export default function Products({
                                 Edit
                             </button>{" "}
                             <button
-                                className="text-red-700"
+                                className="text-store-danger"
                                 type="button"
                                 disabled={removeState.isLoading}
                                 onClick={() => void deleteItem(product)}
@@ -235,7 +235,7 @@ export default function Products({
             )}
             {products && products.length > 0 && (
                 <section
-                    className="my-4 rounded-2xl bg-store-surface p-4"
+                    className="my-4 rounded-panel bg-store-surface p-4"
                     aria-label="Bulk product actions"
                 >
                     <button
@@ -277,7 +277,7 @@ export default function Products({
                         Apply discount
                     </button>{" "}
                     <button
-                        className="text-red-700"
+                        className="text-store-danger"
                         type="button"
                         disabled={selected.length === 0 || bulkState.isLoading}
                         onClick={() => void applyBulk("delete")}
@@ -314,7 +314,7 @@ export default function Products({
             </nav>
             <h3>{editing ? "Edit product" : "Add product"}</h3>
             <form
-                className="my-4 space-y-3 rounded-2xl bg-store-surface p-5"
+                className="my-4 space-y-3 rounded-panel bg-store-surface p-5"
                 key={formKey}
                 onSubmit={(event) => void submit(event)}
             >

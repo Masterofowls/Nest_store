@@ -16,7 +16,9 @@ describe('ProductsController input and service mapping', () => {
   let app: NestExpressApplication;
   const service = {
     findAll: jest.fn(),
-    getOrThrow: jest.fn(),
+    findDetail: jest.fn(),
+    findFacets: jest.fn(),
+    findCompared: jest.fn(),
     postProduct: jest.fn(),
     patchProduct: jest.fn(),
     deleteProduct: jest.fn(),
@@ -25,7 +27,9 @@ describe('ProductsController input and service mapping', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     service.findAll.mockResolvedValue([productFixture]);
-    service.getOrThrow.mockResolvedValue(productFixture);
+    service.findDetail.mockResolvedValue(productFixture);
+    service.findFacets.mockResolvedValue({ brands: [], attributes: [] });
+    service.findCompared.mockResolvedValue([productFixture]);
     service.postProduct.mockResolvedValue(productFixture);
     service.patchProduct.mockResolvedValue(productFixture);
     service.deleteProduct.mockResolvedValue(undefined);
@@ -74,7 +78,58 @@ describe('ProductsController input and service mapping', () => {
       .get(`/products/${productFixture.id}`)
       .expect(200)
       .expect(productJson);
-    expect(service.getOrThrow).toHaveBeenCalledWith(productFixture.id);
+    expect(service.findDetail).toHaveBeenCalledWith(productFixture.id);
+  });
+
+  it('reads a product by slug', async () => {
+    await request(app.getHttpServer())
+      .get(`/products/${productFixture.slug}`)
+      .expect(200);
+    expect(service.findDetail).toHaveBeenCalledWith(productFixture.slug);
+  });
+
+  it('parses brand and attribute filters for the list and facets', async () => {
+    const brandId = '00000000-0000-4000-8000-000000000009';
+    const query = `brandIds=${brandId}&attrs=color:black|white;anc:true`;
+    const parsed = expect.objectContaining({
+      brandIds: [brandId],
+      attrs: [
+        { slug: 'color', values: ['black', 'white'] },
+        { slug: 'anc', values: ['true'] },
+      ],
+    }) as unknown;
+    await request(app.getHttpServer()).get(`/products?${query}`).expect(200);
+    expect(service.findAll).toHaveBeenCalledWith(parsed);
+    await request(app.getHttpServer())
+      .get(`/products/facets?${query}`)
+      .expect(200);
+    expect(service.findFacets).toHaveBeenCalledWith(parsed);
+    expect(service.findDetail).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'attrs=color',
+    'attrs=Color:black',
+    'attrs=color:',
+    'attrs=color:a;color:b',
+    'brandIds=not-a-uuid',
+  ])('rejects the malformed filter %s', async (query) => {
+    await request(app.getHttpServer()).get(`/products?${query}`).expect(400);
+    expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it('compares up to four products and rejects a fifth', async () => {
+    const ids = [1, 2, 3, 4, 5].map(
+      (n) => `00000000-0000-4000-8000-00000000000${n}`,
+    );
+    await request(app.getHttpServer())
+      .get(`/products/compare?ids=${ids.slice(0, 4).join(',')}`)
+      .expect(200);
+    expect(service.findCompared).toHaveBeenCalledWith(ids.slice(0, 4));
+    await request(app.getHttpServer())
+      .get(`/products/compare?ids=${ids.join(',')}`)
+      .expect(400);
+    expect(service.findCompared).toHaveBeenCalledTimes(1);
   });
 
   it('creates a validated product with server-derived seller and Location', async () => {
@@ -153,8 +208,13 @@ describe('ProductsController input and service mapping', () => {
     expect(service.findAll).not.toHaveBeenCalled();
   });
 
-  it('rejects non-UUID IDs', async () => {
-    await request(app.getHttpServer()).get('/products/p1').expect(400);
-    expect(service.getOrThrow).not.toHaveBeenCalled();
-  });
+  it.each(['Bad_Ref', 'UPPER-case', 'trailing-', 'a--b'])(
+    'rejects the malformed product reference %s',
+    async (reference) => {
+      await request(app.getHttpServer())
+        .get(`/products/${reference}`)
+        .expect(400);
+      expect(service.findDetail).not.toHaveBeenCalled();
+    },
+  );
 });
