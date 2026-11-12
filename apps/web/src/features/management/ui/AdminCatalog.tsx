@@ -6,6 +6,7 @@ import {
     useManagementCategoriesQuery,
     useSaveCategoryMutation,
 } from "../api/management-api";
+import AdminCatalogModel from "./AdminCatalogModel";
 import Products from "./Products";
 
 export default function AdminCatalog() {
@@ -128,6 +129,7 @@ export default function AdminCatalog() {
                 </form>
                 {message && <output>{message}</output>}
             </section>
+            <AdminCatalogModel />
         </>
     );
 }

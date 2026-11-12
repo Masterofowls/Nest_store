@@ -18,16 +18,14 @@ vi.mock("@/features/management/ui/PublicBanners", () => ({
 afterEach(cleanup);
 
 describe("Home page", () => {
-    it("renders the dashboard and the catalog banner", () => {
+    it("renders the dashboard without a banner that repeats the catalog link", () => {
         render(<Home />);
 
         expect(
             screen.getByRole("heading", { level: 1, name: "Dashboard" }),
         ).not.toBeNull();
         expect(
-            screen
-                .getByRole("link", { name: "Open the catalog" })
-                .getAttribute("href"),
-        ).toBe("/catalog");
+            screen.queryByRole("link", { name: "Open the catalog" }),
+        ).toBeNull();
     });
 });

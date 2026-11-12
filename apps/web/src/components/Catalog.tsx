@@ -12,10 +12,11 @@ import {
     useGetProductFacetsQuery,
     useGetProductsQuery,
 } from "@/shared/api/baseApi";
+import Link from "next/link";
 import Breadcrumbs, { categoryCrumbs } from "./Breadcrumbs";
+import { categoryHref } from "./CatalogMenu";
 import Filters, { type CatalogFilters } from "./Filters";
 import ProductTile from "./ProductTile";
-import Search from "./Search";
 
 const catalogPageSize = 12;
 
@@ -58,7 +59,9 @@ export default function Catalog({
     initialBrandIds = [],
     initialAttributes = {},
 }: CatalogProps) {
-    const [search, setSearch] = useState(initialSearch);
+    // The header search sends queries here through the address, so the page
+    // shows the query instead of a second search box.
+    const search = initialSearch;
     const [sort, setSort] = useState<ProductSort | "">("");
     const [filters, setFilters] = useState<CatalogFilters>({
         categoryId: initialCategoryId,
@@ -103,11 +106,6 @@ export default function Catalog({
     );
     const hasNextPage = Boolean(nextPageQuery.currentData?.length);
 
-    function handleSearch(nextSearch: string) {
-        setSearch(nextSearch);
-        setPage(1);
-    }
-
     function handleFiltersChange(changes: Partial<CatalogFilters>) {
         const next = { ...filters, ...changes };
         // Attribute options belong to a category, so a selection made in one
@@ -132,10 +130,23 @@ export default function Catalog({
                 crumbs={trail.slice(0, -1)}
                 current={trail.at(-1)?.label}
             />
-            <h1 id="catalog-heading" className="mb-5">
-                Catalog
-            </h1>
-            <Search onSearch={handleSearch} initialSearch={initialSearch} />
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h1 id="catalog-heading">
+                    {search ? `Results for “${search}”` : "Catalog"}
+                </h1>
+                {search && (
+                    <Link
+                        className="inline-flex min-h-11 items-center text-sm"
+                        href={
+                            filters.categoryId
+                                ? categoryHref(filters.categoryId)
+                                : "/catalog"
+                        }
+                    >
+                        Clear search
+                    </Link>
+                )}
+            </div>
 
             <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
                 <aside aria-label="Filters">

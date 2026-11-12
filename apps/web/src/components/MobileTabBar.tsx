@@ -60,7 +60,7 @@ export default function MobileTabBar() {
                                 <Icon className="size-6" />
                                 {label}
                                 {count !== undefined && count > 0 && (
-                                    <span className="absolute top-1 left-1/2 ml-1.5 min-w-5 rounded-full bg-store-sale px-1 text-center text-[0.6875rem] leading-5 font-bold text-white">
+                                    <span className="absolute top-1 left-1/2 ml-1.5 min-w-5 rounded-full bg-store-ink px-1 text-center text-[0.6875rem] leading-5 font-bold text-white">
                                         {count}
                                         <span className="sr-only">
                                             {count === 1 ? " item" : " items"}

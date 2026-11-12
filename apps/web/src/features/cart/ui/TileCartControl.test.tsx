@@ -3,7 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
     api,
     makeProduct,
@@ -46,26 +46,24 @@ function renderControl(stockQuantity = product.stockQuantity) {
 }
 
 describe("TileCartControl", () => {
-    it("sends a guest to sign in", async () => {
+    it("shows no buy control to a guest", async () => {
+        let checked = false;
         server.use(
-            http.get(`${api}/users/me`, () =>
-                HttpResponse.json(null, { status: 401 }),
-            ),
+            http.get(`${api}/users/me`, () => {
+                checked = true;
+                return HttpResponse.json(null, { status: 401 });
+            }),
         );
         renderControl();
 
-        expect(
-            (
-                await screen.findByRole("link", { name: "Sign in to buy" })
-            ).getAttribute("href"),
-        ).toBe("/login");
+        await vi.waitFor(() => expect(checked).toBe(true));
+        expect(screen.queryByRole("button")).toBeNull();
+        expect(screen.queryByRole("link")).toBeNull();
     });
 
-    it("disables buying when the product is out of stock", () => {
+    it("shows no buy control when the product is out of stock", () => {
         renderControl(0);
-        expect(
-            screen.getByRole("button", { name: "Out of stock" }),
-        ).toHaveProperty("disabled", true);
+        expect(screen.queryByRole("button")).toBeNull();
     });
 
     it("adds to the cart, then steps the quantity within stock and removes at one", async () => {

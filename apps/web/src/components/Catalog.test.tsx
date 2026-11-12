@@ -25,7 +25,7 @@ function productPage(page: number, count: number) {
 }
 
 describe("Catalog", () => {
-    it("filters products by category and search from the first page", async () => {
+    it("filters products by category from the first page", async () => {
         const requests: URLSearchParams[] = [];
         server.use(
             http.get(`${api}/categories`, () =>
@@ -54,18 +54,39 @@ describe("Catalog", () => {
         await user.selectOptions(screen.getByLabelText("Category"), "Audio");
         expect(await screen.findByText("Studio Headphones")).not.toBeNull();
         expect(screen.queryByText("Product 1-1")).toBeNull();
-
-        await user.type(
-            screen.getByRole("searchbox", { name: "Search products" }),
-            "studio",
-        );
-        await user.click(screen.getByRole("button", { name: "Search" }));
-
-        await screen.findByText("Studio Headphones");
         const lastRequest = requests.at(-1);
-        expect(lastRequest?.get("search")).toBe("studio");
         expect(lastRequest?.get("categoryId")).toBe(categoryId);
         expect(lastRequest?.get("page")).toBe("1");
+    });
+
+    it("searches for the query from the address and offers to clear it", async () => {
+        const requests: URLSearchParams[] = [];
+        server.use(
+            http.get(`${api}/categories`, () =>
+                HttpResponse.json([{ id: categoryId, name: "Audio" }]),
+            ),
+            http.get(`${api}/products`, ({ request }) => {
+                requests.push(new URL(request.url).searchParams);
+                return HttpResponse.json([
+                    makeProduct({ name: "Studio Headphones" }),
+                ]);
+            }),
+        );
+        renderWithStore(
+            <Catalog initialSearch="studio" initialCategoryId={categoryId} />,
+        );
+
+        expect(await screen.findByText("Studio Headphones")).not.toBeNull();
+        expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+            "Results for “studio”",
+        );
+        expect(requests.at(-1)?.get("search")).toBe("studio");
+        expect(
+            screen
+                .getByRole("link", { name: "Clear search" })
+                .getAttribute("href"),
+        ).toBe(`/catalog?category=${categoryId}`);
+        expect(screen.queryByRole("searchbox")).toBeNull();
     });
 
     it("pages through results and shows an empty state", async () => {
@@ -73,9 +94,6 @@ describe("Catalog", () => {
             http.get(`${api}/categories`, () => HttpResponse.json([])),
             http.get(`${api}/products`, ({ request }) => {
                 const params = new URL(request.url).searchParams;
-                if (params.get("search") === "missing") {
-                    return HttpResponse.json([]);
-                }
                 const page = Number(params.get("page"));
                 return HttpResponse.json(
                     page === 1
@@ -96,12 +114,14 @@ describe("Catalog", () => {
 
         expect(await screen.findByText("Product 2-1")).not.toBeNull();
         expect(screen.getByText("Page 2")).not.toBeNull();
+    });
 
-        await user.type(
-            screen.getByRole("searchbox", { name: "Search products" }),
-            "missing",
+    it("shows an empty state when nothing matches", async () => {
+        server.use(
+            http.get(`${api}/categories`, () => HttpResponse.json([])),
+            http.get(`${api}/products`, () => HttpResponse.json([])),
         );
-        await user.click(screen.getByRole("button", { name: "Search" }));
+        renderWithStore(<Catalog initialSearch="missing" />);
 
         expect(
             await screen.findByText("No products match these filters."),

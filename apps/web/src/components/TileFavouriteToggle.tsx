@@ -15,7 +15,7 @@ type TileFavouriteToggleProps = {
 };
 
 const toggleClass =
-    "absolute top-1.5 right-1.5 z-10 inline-flex size-11 items-center justify-center rounded-full bg-store-surface/85 p-0 text-store-ink hover:bg-store-surface hover:text-store-sale";
+    "absolute top-0 right-0 z-10 inline-flex size-11 items-center justify-center rounded-none border-0 bg-transparent p-0 text-store-ink hover:bg-store-surface hover:text-store-sale";
 
 export default function TileFavouriteToggle({
     productId,

@@ -936,6 +936,9 @@ describe('Seller profiles and owned products through Nest', () => {
           discountPercent: 0,
           deliveryDays: 3,
           badge: null,
+          brandId: null,
+          variantGroupId: null,
+          slug: `keyboard-${id.slice(-8)}`,
           createdAt: expect.any(String) as unknown,
         }),
       );

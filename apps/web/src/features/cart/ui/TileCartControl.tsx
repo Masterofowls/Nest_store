@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
     useAddCartItemMutation,
     useGetCartQuery,
@@ -36,24 +35,11 @@ export default function TileCartControl({
     const failed =
         addState.isError || updateState.isError || removeState.isError;
 
-    if (stockQuantity === 0) {
-        return (
-            <button className={controlClass} type="button" disabled>
-                Out of stock
-            </button>
-        );
-    }
-    if (isLoadingUser) return null;
-    if (!user) {
-        return (
-            <Link
-                className={`${controlClass} inline-flex items-center justify-center bg-store-primary-soft text-store-primary hover:bg-store-border hover:text-store-primary-hover`}
-                href="/login"
-            >
-                Sign in to buy
-            </Link>
-        );
-    }
+    // The tile already says "Out of stock", so no disabled button repeats it.
+    if (stockQuantity === 0) return null;
+    // Signed-out visitors buy from the product page, which explains signing in
+    // once instead of repeating a sign-in button on every tile.
+    if (isLoadingUser || !user) return null;
 
     if (!cartItem) {
         return (

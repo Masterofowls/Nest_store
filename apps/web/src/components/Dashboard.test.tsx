@@ -147,7 +147,7 @@ describe("Dashboard", () => {
                 () => HttpResponse.json([{ ...similar, coViewers: 2 }]),
             ),
             http.get(`${origin}/backend/products/:productId`, () =>
-                HttpResponse.json(viewed),
+                HttpResponse.json({ ...viewed, attributes: [], variants: [] }),
             ),
             http.get(`${origin}/backend/products`, () =>
                 HttpResponse.json(makeProducts("Keyboard", 1, 2)),

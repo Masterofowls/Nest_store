@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useManagementCategoriesQuery } from "../api/management-api";
 
-export default function CategoryPicker({ initialId }: { initialId?: string }) {
+export default function CategoryPicker({
+    initialId,
+    onChange,
+}: {
+    initialId?: string;
+    onChange?: (categoryId: string) => void;
+}) {
     const [page, setPage] = useState(1);
     const [selected, setSelected] = useState(initialId ?? "");
     const query = useManagementCategoriesQuery(page);
@@ -17,7 +23,10 @@ export default function CategoryPicker({ initialId }: { initialId?: string }) {
                 <select
                     name="categoryId"
                     value={selected}
-                    onChange={(event) => setSelected(event.target.value)}
+                    onChange={(event) => {
+                        setSelected(event.target.value);
+                        onChange?.(event.target.value);
+                    }}
                     required
                 >
                     <option value="">Select category</option>

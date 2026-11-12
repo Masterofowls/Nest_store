@@ -118,7 +118,7 @@ describe("ProductList", () => {
         ).toBe(`/products/${productId}`);
         expect(screen.getByText("$26.99")).not.toBeNull();
         expect(screen.getByText("$29.99")).not.toBeNull();
-        expect(screen.getByText("4 in stock")).not.toBeNull();
+        expect(screen.getByText("Only 4 left")).not.toBeNull();
         expect(screen.getByText("−10%")).not.toBeNull();
         expect(await screen.findByText("latest review")).not.toBeNull();
         expect(screen.getByText("4")).not.toBeNull();

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Onest, Unbounded } from "next/font/google";
+import { Wix_Madefor_Display, Wix_Madefor_Text } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -12,21 +12,24 @@ export const metadata: Metadata = {
     description: "Browse products from independent sellers.",
 };
 
-const onest = Onest({
+const madeforText = Wix_Madefor_Text({
     subsets: ["latin", "cyrillic"],
     display: "swap",
-    variable: "--font-onest",
+    variable: "--font-madefor-text",
 });
 
-const unbounded = Unbounded({
+const madeforDisplay = Wix_Madefor_Display({
     subsets: ["latin", "cyrillic"],
     display: "swap",
-    variable: "--font-unbounded",
+    variable: "--font-madefor-display",
 });
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
-        <html lang="en" className={`${onest.variable} ${unbounded.variable}`}>
+        <html
+            lang="en"
+            className={`${madeforText.variable} ${madeforDisplay.variable}`}
+        >
             <body className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:pb-0">
                 <a
                     className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4"

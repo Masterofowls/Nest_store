@@ -20,9 +20,9 @@ describe("facet address parameters", () => {
 
     it("omits attributes with nothing selected", () => {
         expect(serializeAttributeSelection({ color: [] })).toBeUndefined();
-        expect(
-            serializeAttributeSelection({ color: [], anc: ["false"] }),
-        ).toBe("anc:false");
+        expect(serializeAttributeSelection({ color: [], anc: ["false"] })).toBe(
+            "anc:false",
+        );
     });
 
     it.each([

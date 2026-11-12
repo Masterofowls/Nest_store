@@ -1,4 +1,8 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import {
+    createSlice,
+    type PayloadAction,
+    type UnknownAction,
+} from "@reduxjs/toolkit";
 import { z } from "zod";
 import { MAX_COMPARED_PRODUCTS } from "@/shared/api/baseApi";
 
@@ -67,4 +71,38 @@ export function writeStoredCompareIds(ids: string[]): void {
     } catch {
         // The list still works for this visit when storage is unavailable.
     }
+}
+
+type CompareStore = {
+    dispatch: (action: UnknownAction) => unknown;
+    getState: () => { compare: CompareState };
+    subscribe: (listener: () => void) => () => void;
+};
+
+// Loads the saved list, saves every change, and follows changes made in
+// other tabs; without that, a stale tab would overwrite a newer list.
+export function syncCompareWithStorage(store: CompareStore): () => void {
+    store.dispatch(compareLoaded(readStoredCompareIds()));
+    let saved = selectComparedIds(store.getState());
+
+    function handleStorage(event: StorageEvent) {
+        if (event.key !== null && event.key !== COMPARE_STORAGE_KEY) return;
+        store.dispatch(compareLoaded(readStoredCompareIds()));
+        // Already stored by the other tab; writing it back is not needed.
+        saved = selectComparedIds(store.getState());
+    }
+
+    window.addEventListener("storage", handleStorage);
+    const unsubscribe = store.subscribe(() => {
+        const state = store.getState();
+        const ids = selectComparedIds(state);
+        if (selectIsCompareLoaded(state) && ids !== saved) {
+            saved = ids;
+            writeStoredCompareIds(ids);
+        }
+    });
+    return () => {
+        window.removeEventListener("storage", handleStorage);
+        unsubscribe();
+    };
 }

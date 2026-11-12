@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import {
   and,
   asc,
@@ -30,11 +29,10 @@ import {
   products,
   ratings,
 } from '../db/schema';
-import type { StoreTransaction } from '../cart/cart-lock';
 import { isPostgresConstraint } from '../common/postgres-constraint';
 import { isProductId } from './product.schema';
+import { replaceAttributes, resolveVariantGroup } from './product-writes';
 import type {
-  AttributeValueInput,
   CreateProductInput,
   ProductQuery,
   ProductSort,
@@ -391,7 +389,7 @@ export class ProductsService {
   async postProduct(input: CreateProductInput, sellerId: string) {
     try {
       return await this.database.db.transaction(async (tx) => {
-        const variantGroupId = await this.resolveVariantGroup(
+        const variantGroupId = await resolveVariantGroup(
           tx,
           input.variantOfProductId,
           sellerId,
@@ -416,7 +414,7 @@ export class ProductsService {
           throw new Error('Product insert did not return a product');
         }
         if (input.attributes) {
-          await this.replaceAttributes(tx, product.id, input.attributes);
+          await replaceAttributes(tx, product.id, input.attributes);
         }
         return product;
       });
@@ -431,7 +429,20 @@ export class ProductsService {
     }
     try {
       return await this.database.db.transaction(async (tx) => {
-        const variantGroupId = await this.resolveVariantGroup(
+        // Checked first, through the transaction, so a foreign seller's
+        // request changes nothing and no second connection is needed.
+        const [current] = await tx
+          .select({ sellerId: products.sellerId })
+          .from(products)
+          .where(eq(products.id, id))
+          .for('update');
+        if (!current) {
+          throw new NotFoundException('Product not found');
+        }
+        if (current.sellerId !== sellerId) {
+          throw new ForbiddenException('Product belongs to another seller');
+        }
+        const variantGroupId = await resolveVariantGroup(
           tx,
           input.variantOfProductId,
           sellerId,
@@ -455,11 +466,10 @@ export class ProductsService {
           .where(and(eq(products.id, id), eq(products.sellerId, sellerId)))
           .returning();
         if (!product) {
-          await this.getOrThrow(id);
-          throw new ForbiddenException('Product belongs to another seller');
+          throw new Error('Product update did not return a product');
         }
         if (input.attributes) {
-          await this.replaceAttributes(tx, id, input.attributes);
+          await replaceAttributes(tx, id, input.attributes);
         }
         return product;
       });
@@ -485,85 +495,6 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
     return result;
-  }
-
-  // undefined leaves the group as it is, null clears it.
-  private async resolveVariantGroup(
-    tx: StoreTransaction,
-    variantOfProductId: string | null | undefined,
-    sellerId: string,
-  ): Promise<string | null | undefined> {
-    if (variantOfProductId === undefined || variantOfProductId === null) {
-      return variantOfProductId;
-    }
-    const [sibling] = await tx
-      .select({
-        sellerId: products.sellerId,
-        variantGroupId: products.variantGroupId,
-      })
-      .from(products)
-      .where(eq(products.id, variantOfProductId))
-      .for('update');
-    if (!sibling) {
-      throw new BadRequestException('Variant product not found');
-    }
-    if (sibling.sellerId !== sellerId) {
-      throw new ForbiddenException('Variant product belongs to another seller');
-    }
-    if (sibling.variantGroupId !== null) {
-      return sibling.variantGroupId;
-    }
-    const variantGroupId = randomUUID();
-    await tx
-      .update(products)
-      .set({ variantGroupId })
-      .where(eq(products.id, variantOfProductId));
-    return variantGroupId;
-  }
-
-  private async replaceAttributes(
-    tx: StoreTransaction,
-    productId: string,
-    values: AttributeValueInput[],
-  ): Promise<void> {
-    const definitions =
-      values.length === 0
-        ? []
-        : await tx
-            .select({ id: attributes.id, type: attributes.type })
-            .from(attributes)
-            .where(
-              inArray(
-                attributes.id,
-                values.map((value) => value.attributeId),
-              ),
-            );
-    const types = new Map(definitions.map(({ id, type }) => [id, type]));
-    const rows = values.map(({ attributeId, value }) => {
-      const type = types.get(attributeId);
-      if (type === undefined) {
-        throw new BadRequestException('Attribute not found');
-      }
-      const expected = type === 'text' ? 'string' : type;
-      if (typeof value !== expected) {
-        throw new BadRequestException(
-          `Attribute value must be a ${type === 'text' ? 'text' : type}`,
-        );
-      }
-      return {
-        productId,
-        attributeId,
-        valueText: typeof value === 'string' ? value : null,
-        valueNumber: typeof value === 'number' ? String(value) : null,
-        valueBoolean: typeof value === 'boolean' ? value : null,
-      };
-    });
-    await tx
-      .delete(productAttributeValues)
-      .where(eq(productAttributeValues.productId, productId));
-    if (rows.length > 0) {
-      await tx.insert(productAttributeValues).values(rows);
-    }
   }
 
   private rethrowReferenceError(error: unknown): never {

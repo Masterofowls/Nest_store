@@ -95,6 +95,30 @@ const importResultSchema = z.object({
 export type ManagedProduct = z.infer<typeof productSchema>;
 export type ManagedUser = z.infer<typeof userSchema>;
 export type ManagedBanner = z.infer<typeof bannerSchema>;
+const brandSchema = z.object({ id: z.uuid(), name: z.string() });
+const attributeDefinitionSchema = z.object({
+    id: z.uuid(),
+    categoryId: z.uuid().nullable(),
+    name: z.string(),
+    slug: z.string(),
+    type: z.enum(["text", "number", "boolean"]),
+    unit: z.string().nullable(),
+    sortOrder: z.number().int(),
+});
+
+export type Brand = z.infer<typeof brandSchema>;
+export type AttributeDefinition = z.infer<typeof attributeDefinitionSchema>;
+export type AttributeValueInput = {
+    attributeId: string;
+    value: string | number | boolean;
+};
+export type AttributeDefinitionInput = {
+    name: string;
+    slug: string;
+    type: AttributeDefinition["type"];
+    unit: string | null;
+    categoryId: string | null;
+};
 export type ProductInput = {
     name: string;
     categoryId: string;
@@ -102,6 +126,11 @@ export type ProductInput = {
     stockQuantity: number;
     discountPercent: number;
     description: string | null;
+    brandId?: string | null;
+    variantOfProductId?: string;
+    // Omitted when the attribute list could not be loaded, so saving the
+    // product does not erase its stored values.
+    attributes?: AttributeValueInput[];
 };
 export type BannerInput = Omit<ManagedBanner, "id">;
 
@@ -329,6 +358,61 @@ const managementApi = baseApi.injectEndpoints({
             },
             invalidatesTags: (_result, error) => (error ? [] : ["Management"]),
         }),
+        managementBrands: builder.query<Brand[], void>({
+            query: () => "brands",
+            transformResponse: (value: unknown) =>
+                parseResponse(z.array(brandSchema), value, "brands"),
+            providesTags: ["Management"],
+        }),
+        saveBrand: builder.mutation<void, { id?: string; name: string }>({
+            query: ({ id, name }) => ({
+                url: `admin/brands${id ? `/${id}` : ""}`,
+                method: id ? "PATCH" : "POST",
+                body: { name },
+            }),
+            transformResponse: () => undefined,
+            invalidatesTags: (_result, error) => (error ? [] : ["Management"]),
+        }),
+        deleteBrand: builder.mutation<void, string>({
+            query: (id) => ({ url: `admin/brands/${id}`, method: "DELETE" }),
+            transformResponse: () => undefined,
+            invalidatesTags: (_result, error) => (error ? [] : ["Management"]),
+        }),
+        // With a category: the attributes offered for it, its parent and
+        // all categories.
+        managementAttributes: builder.query<
+            AttributeDefinition[],
+            string | undefined
+        >({
+            query: (categoryId) => ({
+                url: "attributes",
+                params: categoryId ? { categoryId } : {},
+            }),
+            transformResponse: (value: unknown) =>
+                parseResponse(
+                    z.array(attributeDefinitionSchema),
+                    value,
+                    "attributes",
+                ),
+            providesTags: ["Management"],
+        }),
+        createAttribute: builder.mutation<void, AttributeDefinitionInput>({
+            query: (input) => ({
+                url: "admin/attributes",
+                method: "POST",
+                body: input,
+            }),
+            transformResponse: () => undefined,
+            invalidatesTags: (_result, error) => (error ? [] : ["Management"]),
+        }),
+        deleteAttribute: builder.mutation<void, string>({
+            query: (id) => ({
+                url: `admin/attributes/${id}`,
+                method: "DELETE",
+            }),
+            transformResponse: () => undefined,
+            invalidatesTags: (_result, error) => (error ? [] : ["Management"]),
+        }),
         deleteCategory: builder.mutation<void, string>({
             query: (id) => ({ url: `categories/${id}`, method: "DELETE" }),
             transformResponse: () => undefined,
@@ -420,6 +504,12 @@ export const {
     useManagementOrderQuery,
     useManagementBannersQuery,
     useManagementCategoriesQuery,
+    useManagementBrandsQuery,
+    useSaveBrandMutation,
+    useDeleteBrandMutation,
+    useManagementAttributesQuery,
+    useCreateAttributeMutation,
+    useDeleteAttributeMutation,
     useManagementSellersQuery,
     useOwnSellerQuery,
     useSaveSellerMutation,

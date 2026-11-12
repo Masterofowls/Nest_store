@@ -7,10 +7,17 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { isPostgresConstraint } from '../common/postgres-constraint';
 import { DatabaseService } from '../db/database/database.service';
 import { products } from '../db/schema';
+import {
+  replaceAttributes,
+  resolveVariantGroup,
+} from '../products/product-writes';
 import type { UpdateProductInput } from '../products/product.schema';
 import type { AdminCreateProductInput } from './admin.schema';
 
 export function rethrowProductReferenceError(error: unknown): never {
+  if (isPostgresConstraint(error, '23503', 'products_brand_id_brands_id_fk')) {
+    throw new BadRequestException('Brand not found');
+  }
   if (
     isPostgresConstraint(
       error,
@@ -38,45 +45,82 @@ export class AdminProductsService {
 
   async create(input: AdminCreateProductInput) {
     try {
-      const [product] = await this.database.db
-        .insert(products)
-        .values({
-          sellerId: input.sellerId,
-          name: input.name,
-          categoryId: input.categoryId,
-          stockQuantity: input.stockQuantity,
-          price: input.price,
-          description: input.description,
-          discountPercent: input.discountPercent,
-        })
-        .returning();
-      if (!product) {
-        throw new Error('Product insert did not return a product');
-      }
-      return product;
+      return await this.database.db.transaction(async (tx) => {
+        const variantGroupId = await resolveVariantGroup(
+          tx,
+          input.variantOfProductId,
+          input.sellerId,
+        );
+        const [product] = await tx
+          .insert(products)
+          .values({
+            sellerId: input.sellerId,
+            name: input.name,
+            categoryId: input.categoryId,
+            stockQuantity: input.stockQuantity,
+            price: input.price,
+            description: input.description,
+            discountPercent: input.discountPercent,
+            brandId: input.brandId,
+            variantGroupId,
+          })
+          .returning();
+        if (!product) {
+          throw new Error('Product insert did not return a product');
+        }
+        if (input.attributes) {
+          await replaceAttributes(tx, product.id, input.attributes);
+        }
+        return product;
+      });
     } catch (error) {
       rethrowProductReferenceError(error);
     }
   }
 
   async update(id: string, input: UpdateProductInput) {
+    if (input.variantOfProductId === id) {
+      throw new BadRequestException('A product cannot be its own variant');
+    }
     try {
-      const [product] = await this.database.db
-        .update(products)
-        .set({
-          name: input.name,
-          categoryId: input.categoryId,
-          stockQuantity: input.stockQuantity,
-          price: input.price,
-          description: input.description,
-          discountPercent: input.discountPercent,
-        })
-        .where(eq(products.id, id))
-        .returning();
-      if (!product) {
-        throw new NotFoundException('Product not found');
-      }
-      return product;
+      return await this.database.db.transaction(async (tx) => {
+        const [current] = await tx
+          .select({ sellerId: products.sellerId })
+          .from(products)
+          .where(eq(products.id, id))
+          .for('update');
+        if (!current) {
+          throw new NotFoundException('Product not found');
+        }
+        const variantGroupId = await resolveVariantGroup(
+          tx,
+          input.variantOfProductId,
+          current.sellerId,
+        );
+        const [product] = await tx
+          .update(products)
+          .set({
+            // Keeps the statement valid when only attributes are sent.
+            id,
+            name: input.name,
+            categoryId: input.categoryId,
+            stockQuantity: input.stockQuantity,
+            price: input.price,
+            description: input.description,
+            discountPercent: input.discountPercent,
+            brandId: input.brandId,
+            variantGroupId,
+          })
+          .where(eq(products.id, id))
+          .returning();
+        if (!product) {
+          throw new NotFoundException('Product not found');
+        }
+        if (input.attributes) {
+          await replaceAttributes(tx, id, input.attributes);
+        }
+        return product;
+      });
     } catch (error) {
       rethrowProductReferenceError(error);
     }

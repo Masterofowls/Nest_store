@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { HttpResponse, http } from "msw";
@@ -17,6 +17,9 @@ import {
 import { makeStore } from "@/app/store";
 import ProductItem from "./ProductItem";
 
+const replace = vi.fn<(href: string, options?: { scroll: boolean }) => void>();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+
 const origin = "http://localhost";
 const productId = "00000000-0000-4000-8000-000000000001";
 const sellerId = "00000000-0000-4000-8000-000000000002";
@@ -31,6 +34,9 @@ const product = {
     stockQuantity: 24,
     discountPercent: 10,
     price: "89.99",
+    slug: "mechanical-keyboard-00000001",
+    attributes: [],
+    variants: [],
 };
 const server = setupServer();
 
@@ -52,6 +58,9 @@ function mockProductDetails() {
     server.use(
         http.get(`${origin}/backend/users/me`, () =>
             HttpResponse.json(null, { status: 401 }),
+        ),
+        http.get(`${origin}/backend/categories`, () =>
+            HttpResponse.json([{ id: categoryId, name: "Keyboards" }]),
         ),
         http.get(`${origin}/backend/products/${productId}`, () =>
             HttpResponse.json(product),
@@ -141,11 +150,21 @@ describe("ProductItem", () => {
                 })
             ).getAttribute("src"),
         ).toBe("https://images.example.test/keyboard.webp");
+        const breadcrumb = screen.getByRole("navigation", {
+            name: "Breadcrumb",
+        });
         expect(
-            screen
-                .getByRole("link", { name: "Back to products" })
-                .getAttribute("href"),
-        ).toBe("/");
+            (
+                await within(breadcrumb).findByRole("link", {
+                    name: "Keyboards",
+                })
+            ).getAttribute("href"),
+        ).toBe(`/catalog?category=${categoryId}`);
+        expect(
+            within(breadcrumb)
+                .getByText("Mechanical Keyboard")
+                .getAttribute("aria-current"),
+        ).toBe("page");
     });
 
     it("shows empty states when the product has no image or reviews", async () => {
@@ -240,5 +259,16 @@ describe("ProductItem", () => {
 
         expect(await screen.findByText("Out of stock")).not.toBeNull();
         expect(screen.queryByRole("button", { name: "Increase" })).toBeNull();
+    });
+
+    it("moves an id address to the product's slug", async () => {
+        mockProductDetails();
+        renderProductItem();
+
+        await screen.findByRole("heading", { name: "Mechanical Keyboard" });
+        expect(replace).toHaveBeenCalledWith(
+            "/products/mechanical-keyboard-00000001",
+            { scroll: false },
+        );
     });
 });

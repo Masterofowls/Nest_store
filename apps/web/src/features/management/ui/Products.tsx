@@ -11,6 +11,10 @@ import {
 } from "../api/management-api";
 import ProductImages from "./ProductImages";
 import CategoryPicker from "./CategoryPicker";
+import ProductCatalogFields, {
+    readAttributeValues,
+    useProductAttributes,
+} from "./ProductCatalogFields";
 import SellerPicker from "./SellerPicker";
 
 export default function Products({
@@ -42,6 +46,18 @@ export default function Products({
     const [selected, setSelected] = useState<string[]>([]);
     const [discount, setDiscount] = useState("0");
     const [bulk, bulkState] = useBulkProductsMutation();
+    // The category chosen in the form decides which specifications it shows;
+    // a new form (new key) starts from the edited product's category.
+    const formIdentity = `${formKey}:${editing?.id ?? "new"}`;
+    const [categoryChoice, setCategoryChoice] = useState({
+        formIdentity,
+        categoryId: "",
+    });
+    const formCategoryId =
+        categoryChoice.formIdentity === formIdentity
+            ? categoryChoice.categoryId
+            : (editing?.categoryId ?? "");
+    const attributeQuery = useProductAttributes(formCategoryId);
 
     async function applyBulk(action: "delete" | "discount") {
         const value = Number(discount);
@@ -108,6 +124,17 @@ export default function Products({
             );
             return;
         }
+        const attributeValues =
+            values.get("attributesReady") && attributeQuery.currentData
+                ? readAttributeValues(values, attributeQuery.currentData)
+                : undefined;
+        if (attributeValues && "error" in attributeValues) {
+            setMessage(attributeValues.error);
+            return;
+        }
+        const variantOfProductId = String(
+            values.get("variantOfProductId") ?? "",
+        ).trim();
         const input = {
             name: String(values.get("name") ?? "").trim(),
             categoryId: String(values.get("categoryId") ?? ""),
@@ -115,6 +142,11 @@ export default function Products({
             stockQuantity: Number(values.get("stockQuantity")),
             discountPercent: Number(values.get("discountPercent")),
             description: String(values.get("description") ?? "").trim() || null,
+            brandId: values.has("brandId")
+                ? String(values.get("brandId")) || null
+                : undefined,
+            variantOfProductId: variantOfProductId || undefined,
+            attributes: attributeValues?.values,
         };
         try {
             const product = await save({
@@ -331,7 +363,12 @@ export default function Products({
                         />
                     </label>
                 </p>
-                <CategoryPicker initialId={editing?.categoryId} />
+                <CategoryPicker
+                    initialId={editing?.categoryId}
+                    onChange={(categoryId) =>
+                        setCategoryChoice({ formIdentity, categoryId })
+                    }
+                />
                 {mode === "admin" && !editing && <SellerPicker />}
                 {editing && (
                     <p>Seller ID: {editing.sellerId} (cannot be changed)</p>
@@ -387,6 +424,13 @@ export default function Products({
                         />
                     </label>
                 </p>
+                <ProductCatalogFields
+                    productId={editing?.id}
+                    initialBrandId={editing?.brand?.id}
+                    attributes={attributeQuery.currentData}
+                    isAttributeError={attributeQuery.isError}
+                    onRetryAttributes={() => void attributeQuery.refetch()}
+                />
                 <p>
                     <label>
                         Product image (JPEG, PNG or WebP, up to 5 MiB){" "}

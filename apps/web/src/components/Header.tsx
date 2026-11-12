@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { useAppSelector } from "@/app/hooks";
+import { selectComparedIds } from "@/features/compare/model/compareSlice";
 import {
     useGetCurrentUserQuery,
     useSignOutMutation,
@@ -9,7 +11,13 @@ import {
 import CatalogMenu from "./CatalogMenu";
 import CategoryChips from "./CategoryChips";
 import HeaderSearch from "./HeaderSearch";
-import { BoxIcon, CartIcon, HeartIcon, UserIcon } from "./StoreIcons";
+import {
+    BoxIcon,
+    CartIcon,
+    HeartIcon,
+    ScaleIcon,
+    UserIcon,
+} from "./StoreIcons";
 import { useShopCounts } from "./useShopCounts";
 
 type ShortcutLinkProps = {
@@ -33,7 +41,7 @@ function ShortcutLink({
             <Icon className="size-6" />
             <span className="max-w-20 truncate">{children}</span>
             {count !== undefined && count > 0 && (
-                <span className="absolute top-0 left-1/2 ml-1.5 min-w-5 rounded-full bg-store-sale px-1 text-center text-[0.6875rem] leading-5 font-bold text-white">
+                <span className="absolute top-0 left-1/2 ml-1.5 min-w-5 rounded-full bg-store-ink px-1 text-center text-[0.6875rem] leading-5 font-bold text-white">
                     {count}
                     <span className="sr-only">
                         {count === 1 ? " item" : " items"}
@@ -54,12 +62,13 @@ export default function Header() {
     const [signOut, { isLoading: isSigningOut, isError: isSignOutError }] =
         useSignOutMutation();
     const { cartCount, favouriteCount } = useShopCounts();
+    const comparedCount = useAppSelector(selectComparedIds).length;
 
     return (
         <header className="relative z-30 border-b border-store-border bg-store-surface sm:sticky sm:top-0">
             <div className="mx-auto grid max-w-[1440px] grid-cols-[auto_1fr] items-center gap-x-3 gap-y-3 px-4 py-3 sm:px-6 lg:grid-cols-[auto_auto_1fr_auto] lg:gap-x-4 lg:px-8">
                 <Link
-                    className="font-display text-lg font-bold tracking-tight text-store-primary hover:text-store-primary-hover sm:text-xl"
+                    className="font-display text-xl font-bold text-store-ink hover:text-store-primary sm:text-2xl"
                     href="/"
                 >
                     Online Store
@@ -75,6 +84,17 @@ export default function Header() {
                     className="col-start-2 row-start-1 hidden justify-self-end sm:block lg:col-start-4"
                 >
                     <ul className="flex items-center gap-1 text-xs font-medium sm:gap-2">
+                        {comparedCount > 0 && (
+                            <li>
+                                <ShortcutLink
+                                    href="/compare"
+                                    icon={ScaleIcon}
+                                    count={comparedCount}
+                                >
+                                    Compare
+                                </ShortcutLink>
+                            </li>
+                        )}
                         {user ? (
                             <>
                                 <li>
@@ -122,55 +142,40 @@ export default function Header() {
                 </nav>
             </div>
 
-            {(user || !isLoading) && (
+            {user && (
                 <nav
                     aria-label="Main"
                     className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8"
                 >
                     <ul className="flex flex-wrap items-center gap-x-4 text-sm text-store-muted">
-                        {user ? (
-                            <>
-                                <li>
-                                    <Link
-                                        className="inline-flex min-h-11 items-center text-store-muted hover:text-store-primary"
-                                        href="/seller"
-                                    >
-                                        Seller CMS
-                                    </Link>
-                                </li>
-                                {user.isAdmin && (
-                                    <li>
-                                        <Link
-                                            className="inline-flex min-h-11 items-center text-store-muted hover:text-store-primary"
-                                            href="/admin"
-                                        >
-                                            Admin
-                                        </Link>
-                                    </li>
-                                )}
-                                <li className="ml-auto">
-                                    <button
-                                        className="min-h-11 bg-transparent px-0 font-normal text-store-muted hover:bg-transparent hover:text-store-primary"
-                                        type="button"
-                                        disabled={isSigningOut}
-                                        onClick={() => void signOut()}
-                                    >
-                                        {isSigningOut
-                                            ? "Signing out…"
-                                            : "Sign out"}
-                                    </button>
-                                </li>
-                            </>
-                        ) : (
+                        <li>
+                            <Link
+                                className="inline-flex min-h-11 items-center text-store-muted hover:text-store-primary"
+                                href="/seller"
+                            >
+                                Seller CMS
+                            </Link>
+                        </li>
+                        {user.isAdmin && (
                             <li>
                                 <Link
                                     className="inline-flex min-h-11 items-center text-store-muted hover:text-store-primary"
-                                    href="/signup"
+                                    href="/admin"
                                 >
-                                    Sign up
+                                    Admin
                                 </Link>
                             </li>
                         )}
+                        <li className="ml-auto">
+                            <button
+                                className="min-h-11 border-0 bg-transparent px-0 font-normal text-store-muted hover:bg-transparent hover:text-store-primary"
+                                type="button"
+                                disabled={isSigningOut}
+                                onClick={() => void signOut()}
+                            >
+                                {isSigningOut ? "Signing out…" : "Sign out"}
+                            </button>
+                        </li>
                     </ul>
                 </nav>
             )}

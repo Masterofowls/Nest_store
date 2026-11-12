@@ -137,7 +137,10 @@ describe('ProductsService database operations', () => {
   });
 
   it('rejects an attribute value for an unknown attribute', async () => {
-    select.where.mockReturnValue(Promise.resolve([]));
+    // The ownership read passes; the attribute lookup finds nothing.
+    select.where
+      .mockReturnValueOnce(select)
+      .mockReturnValueOnce(Promise.resolve([]));
     await expect(
       service.patchProduct(
         {
@@ -156,9 +159,11 @@ describe('ProductsService database operations', () => {
 
   it('rejects an attribute value of the wrong type', async () => {
     const attributeId = '00000000-0000-4000-8000-000000000007';
-    select.where.mockReturnValue(
-      Promise.resolve([{ id: attributeId, type: 'number' }]),
-    );
+    select.where
+      .mockReturnValueOnce(select)
+      .mockReturnValueOnce(
+        Promise.resolve([{ id: attributeId, type: 'number' }]),
+      );
     await expect(
       service.patchProduct(
         { attributes: [{ attributeId, value: 'heavy' }] },
@@ -242,7 +247,12 @@ describe('ProductsService database operations', () => {
     'returns 404 for a missing product on %s',
     async (operation) => {
       mutation.returning.mockResolvedValue([]);
-      select.where.mockReturnValue(Promise.resolve([]));
+      // Update reads the product with a row lock; delete reads it plainly.
+      if (operation === 'update') {
+        select.for.mockReturnValue(Promise.resolve([]));
+      } else {
+        select.where.mockReturnValue(Promise.resolve([]));
+      }
       const result =
         operation === 'update'
           ? service.patchProduct(

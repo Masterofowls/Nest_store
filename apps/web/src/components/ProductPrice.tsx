@@ -27,24 +27,23 @@ export default function ProductPrice({
     const hasDiscount = discountPercent > 0;
     const { current, original } = readPrices(price, discountPercent);
 
+    // A reduced price sits on a yellow shelf tag; a full price is plain.
     return (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="sr-only">Price</span>
             <strong
-                className={`font-display text-lg leading-tight font-semibold tracking-tight ${hasDiscount ? "text-store-sale" : "text-store-ink"}`}
+                className={`font-display text-xl leading-tight font-bold ${hasDiscount ? "bg-store-tag py-0.5 pr-4 pl-2 text-store-tag-ink [clip-path:polygon(0_0,calc(100%-0.6rem)_0,100%_50%,calc(100%-0.6rem)_100%,0_100%)]" : "text-store-ink"}`}
             >
                 {current}
             </strong>
             {hasDiscount && (
-                <>
-                    <s className="text-sm text-store-muted">
+                <span className="text-sm text-store-muted">
+                    <s>
                         <span className="sr-only">Was </span>
                         {original}
-                    </s>
-                    <span className="rounded-control bg-store-sale px-2 py-0.5 text-xs font-bold text-white">
-                        −{discountPercent}%
-                    </span>
-                </>
+                    </s>{" "}
+                    −{discountPercent}%
+                </span>
             )}
         </p>
     );

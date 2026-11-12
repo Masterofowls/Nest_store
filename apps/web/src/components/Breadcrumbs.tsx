@@ -61,7 +61,8 @@ export default function Breadcrumbs({ crumbs, current }: BreadcrumbsProps) {
                     </li>
                 ))}
                 {current && (
-                    <li className="flex min-w-0 items-center">
+                    // On phones the heading right below already names the page.
+                    <li className="hidden min-w-0 items-center sm:flex">
                         <span aria-hidden="true" className="px-1.5">
                             /
                         </span>

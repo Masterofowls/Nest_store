@@ -12,11 +12,13 @@ export function queryMock<T>(rows: T[]) {
     returning: jest.fn(),
     leftJoin: jest.fn(),
     innerJoin: jest.fn(),
+    for: jest.fn(),
     groupBy: jest.fn(),
     as: jest.fn(),
   });
   query.leftJoin.mockReturnValue(query);
   query.innerJoin.mockReturnValue(query);
+  query.for.mockReturnValue(query);
   query.groupBy.mockReturnValue(query);
   query.as.mockReturnValue(query);
   query.from.mockReturnValue(query);

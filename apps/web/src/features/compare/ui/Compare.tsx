@@ -55,8 +55,8 @@ export default function Compare() {
     if (ids.length === 0) {
         return (
             <p>
-                Nothing to compare yet. Add up to four products with the
-                Compare button on a product.{" "}
+                Nothing to compare yet. Add up to four products with the Compare
+                button on a product.{" "}
                 <Link href="/catalog">Open the catalog</Link>
             </p>
         );
@@ -86,7 +86,9 @@ export default function Compare() {
                     </caption>
                     <thead>
                         <tr>
-                            <td />
+                            <th scope="col">
+                                <span className="sr-only">Property</span>
+                            </th>
                             {products.map((product) => (
                                 <th
                                     className="align-top font-normal"

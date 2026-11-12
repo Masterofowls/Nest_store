@@ -19,6 +19,8 @@ const emptyFilters: CatalogFilters = {
     maxPrice: "",
     discounted: false,
     inStock: false,
+    brandIds: [],
+    attributes: {},
 };
 
 describe("Filters", () => {
@@ -162,4 +164,60 @@ describe("Filters", () => {
             expect(onChange).not.toHaveBeenCalled();
         },
     );
+
+    it("lists brand and attribute options with counts and toggles them", async () => {
+        server.use(
+            http.get(`${api}/categories`, () => HttpResponse.json(categories)),
+        );
+        const brandId = "00000000-0000-4000-8000-000000000201";
+        const onChange = vi.fn<(changes: Partial<CatalogFilters>) => void>();
+        const user = userEvent.setup();
+        renderWithStore(
+            <Filters
+                filters={{
+                    ...emptyFilters,
+                    attributes: { color: ["Black"] },
+                }}
+                facets={{
+                    brands: [{ id: brandId, name: "Keychron", count: 2 }],
+                    attributes: [
+                        {
+                            slug: "color",
+                            name: "Color",
+                            type: "text",
+                            unit: null,
+                            options: [
+                                { value: "Black", count: 3 },
+                                { value: "White", count: 1 },
+                                { value: "a|b", count: 1 },
+                            ],
+                        },
+                        {
+                            slug: "anc",
+                            name: "Noise cancelling",
+                            type: "boolean",
+                            unit: null,
+                            options: [{ value: "true", count: 1 }],
+                        },
+                    ],
+                    price: { min: "10.00", max: "99.00" },
+                }}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByRole("checkbox", { name: /Keychron/ }));
+        expect(onChange).toHaveBeenCalledWith({ brandIds: [brandId] });
+
+        const black = screen.getByRole("checkbox", { name: /Black/ });
+        expect((black as HTMLInputElement).checked).toBe(true);
+        await user.click(screen.getByRole("checkbox", { name: /White/ }));
+        expect(onChange).toHaveBeenCalledWith({
+            attributes: { color: ["Black", "White"] },
+        });
+
+        expect(screen.getByRole("checkbox", { name: /Yes/ })).not.toBeNull();
+        // A value containing a separator cannot be put in the address.
+        expect(screen.queryByRole("checkbox", { name: /a\|b/ })).toBeNull();
+    });
 });

@@ -18,7 +18,7 @@ export default function CategoryChips() {
                 {groups.map((group) => (
                     <li key={group.id} className="shrink-0">
                         <Link
-                            className="inline-flex min-h-11 items-center rounded-full bg-store-tile px-4 text-sm font-medium whitespace-nowrap text-store-ink hover:bg-store-primary-soft hover:text-store-primary"
+                            className="inline-flex min-h-11 items-center rounded-control border border-store-border px-4 text-sm font-medium whitespace-nowrap text-store-ink hover:border-store-ink hover:text-store-ink"
                             href={categoryHref(group.id)}
                         >
                             {group.name}

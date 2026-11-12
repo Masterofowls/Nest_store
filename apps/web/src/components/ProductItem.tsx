@@ -3,13 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import QuantitySelector from "@/features/cart/ui/QuantitySelector";
 import {
+    productHref,
+    type ProductDetail,
+} from "@/entities/product/model/product.schema";
+import QuantitySelector from "@/features/cart/ui/QuantitySelector";
+import { attributeValueLabel } from "@/features/compare/ui/Compare";
+import CompareToggle from "@/features/compare/ui/CompareToggle";
+import {
+    useGetCategoriesQuery,
     useGetProductImagesQuery,
     useGetProductQuery,
     useGetSellerQuery,
 } from "@/shared/api/baseApi";
 import AddToCart from "./AddToCart";
+import Breadcrumbs, { categoryCrumbs } from "./Breadcrumbs";
+import CanonicalProductAddress from "./CanonicalProductAddress";
 import FavouriteButton from "./FavouriteButton";
 import ProductPrice from "./ProductPrice";
 import ProductReviews from "./ProductReviews";
@@ -39,6 +48,68 @@ function SellerCard({ sellerId }: { sellerId: string }) {
     );
 }
 
+function VariantPicker({ product }: { product: ProductDetail }) {
+    if (product.variants.length < 2) return null;
+    const current = product.variants.find(
+        (variant) => variant.id === product.id,
+    );
+    return (
+        <div className="mb-6">
+            <p className="mb-2 text-sm">
+                <span className="text-store-muted">Variant: </span>
+                <span className="font-semibold">
+                    {current?.color ?? product.name}
+                </span>
+            </p>
+            <ul className="flex flex-wrap gap-2" aria-label="Variants">
+                {product.variants.map((variant) => {
+                    const isCurrent = variant.id === product.id;
+                    const label = variant.color ?? variant.name;
+                    return (
+                        <li key={variant.id}>
+                            <Link
+                                className={`inline-flex min-h-11 items-center rounded-control border-2 px-4 text-sm font-medium ${isCurrent ? "border-store-primary bg-store-primary-soft text-store-primary" : "border-store-border text-store-ink hover:border-store-primary hover:text-store-primary"} ${variant.stockQuantity === 0 ? "line-through" : ""}`}
+                                href={productHref(variant)}
+                                aria-current={isCurrent ? "page" : undefined}
+                                aria-label={
+                                    variant.stockQuantity === 0
+                                        ? `${label}, out of stock`
+                                        : undefined
+                                }
+                            >
+                                {label}
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
+
+function Specifications({ product }: { product: ProductDetail }) {
+    if (product.attributes.length === 0) return null;
+    return (
+        <section className="mt-6" aria-labelledby="specs-heading">
+            <h2 id="specs-heading" className="mb-2">
+                Specifications
+            </h2>
+            <dl className="grid max-w-prose grid-cols-[minmax(0,1fr)_minmax(0,1fr)] text-sm">
+                {product.attributes.map((attribute) => (
+                    <div className="contents" key={attribute.slug}>
+                        <dt className="border-b border-store-border py-2 pr-3 text-store-muted">
+                            {attribute.name}
+                        </dt>
+                        <dd className="border-b border-store-border py-2">
+                            {attributeValueLabel(attribute)}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        </section>
+    );
+}
+
 export default function ProductItem({ productId }: ProductItemProps) {
     const {
         currentData: product,
@@ -53,6 +124,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
         refetch: refetchImages,
         // The address may hold a slug, so images wait for the product's id.
     } = useGetProductImagesQuery(product?.id ?? "", { skip: !product });
+    const { data: categories } = useGetCategoriesQuery();
     const [selectedImage, setSelectedImage] = useState({
         productId,
         index: 0,
@@ -68,14 +140,10 @@ export default function ProductItem({ productId }: ProductItemProps) {
 
     return (
         <section>
-            <p>
-                <Link
-                    className="inline-flex min-h-11 items-center text-sm"
-                    href="/"
-                >
-                    Back to products
-                </Link>
-            </p>
+            <Breadcrumbs
+                crumbs={categoryCrumbs(categories, product?.categoryId)}
+                current={product?.name}
+            />
             {isLoadingProduct && !product && <output>Loading product…</output>}
             {isProductError && (
                 <p role="alert">
@@ -87,6 +155,11 @@ export default function ProductItem({ productId }: ProductItemProps) {
             )}
             {product && (
                 <article>
+                    {product.brand && (
+                        <p className="mb-1 text-sm font-semibold text-store-muted">
+                            {product.brand.name}
+                        </p>
+                    )}
                     <h1 className="mb-2">{product.name}</h1>
                     <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-store-muted">
                         {product.averageRating != null &&
@@ -103,12 +176,16 @@ export default function ProductItem({ productId }: ProductItemProps) {
                             </a>
                         ) : null}
                         {badgeLabel(product.badge) && (
-                            <span className="rounded-control bg-store-accent px-2.5 py-0.5 text-xs font-semibold text-store-accent-ink">
+                            <span className="bg-store-ink px-2 py-1 text-xs font-medium text-white">
                                 {badgeLabel(product.badge)}
                             </span>
                         )}
                     </div>
                     <RecordProductView productId={product.id} />
+                    <CanonicalProductAddress
+                        reference={productId}
+                        slug={product.slug}
+                    />
 
                     <div className="grid gap-8 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)_20rem]">
                         <div className="lg:col-start-1 lg:row-start-1">
@@ -147,7 +224,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
                                         ))}
                                     </ul>
                                 )}
-                                <div className="relative aspect-[4/5] flex-1 overflow-hidden rounded-panel bg-store-tile">
+                                <div className="relative aspect-square flex-1 overflow-hidden rounded-panel bg-store-tile">
                                     {currentImage ? (
                                         <Image
                                             src={currentImage.url}
@@ -190,7 +267,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
                             aria-label="Buy"
                             className="flex flex-col gap-4 self-start lg:sticky lg:top-40 lg:col-start-3 lg:row-start-1"
                         >
-                            <div className="flex flex-col gap-3 rounded-panel bg-store-surface p-5 shadow-panel">
+                            <div className="flex flex-col gap-3 rounded-panel border border-store-border bg-store-surface p-5">
                                 <ProductPrice
                                     price={product.price}
                                     discountPercent={product.discountPercent}
@@ -228,6 +305,10 @@ export default function ProductItem({ productId }: ProductItemProps) {
                                     </>
                                 )}
                                 <FavouriteButton productId={product.id} />
+                                <CompareToggle
+                                    productId={product.id}
+                                    productName={product.name}
+                                />
                             </div>
                             <SellerCard sellerId={product.sellerId} />
                         </aside>
@@ -236,6 +317,7 @@ export default function ProductItem({ productId }: ProductItemProps) {
                             className="lg:col-start-2 lg:row-start-1"
                             aria-labelledby="about-heading"
                         >
+                            <VariantPicker product={product} />
                             <h2 id="about-heading" className="mb-2">
                                 About this product
                             </h2>
@@ -243,9 +325,11 @@ export default function ProductItem({ productId }: ProductItemProps) {
                                 {product.description ??
                                     "No description provided."}
                             </p>
+                            <Specifications product={product} />
                             <div className="mt-6">
                                 <ShareProduct
                                     productId={product.id}
+                                    slug={product.slug}
                                     name={product.name}
                                 />
                             </div>

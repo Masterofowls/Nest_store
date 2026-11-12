@@ -4,15 +4,20 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 
-type ShareProductProps = { productId: string; name: string };
+type ShareProductProps = { productId: string; slug?: string; name: string };
 
-export default function ShareProduct({ productId, name }: ShareProductProps) {
-    const [url, setUrl] = useState(`/products/${productId}`);
+export default function ShareProduct({
+    productId,
+    slug,
+    name,
+}: ShareProductProps) {
+    const path = `/products/${slug ?? productId}`;
+    const [url, setUrl] = useState(path);
     const [qrCode, setQrCode] = useState("");
     const [status, setStatus] = useState("");
 
     useEffect(() => {
-        const absoluteUrl = `${window.location.origin}/products/${productId}`;
+        const absoluteUrl = `${window.location.origin}${path}`;
         let active = true;
         void Promise.resolve().then(() => {
             if (active) setUrl(absoluteUrl);
@@ -29,7 +34,7 @@ export default function ShareProduct({ productId, name }: ShareProductProps) {
         return () => {
             active = false;
         };
-    }, [productId]);
+    }, [path]);
 
     async function copyLink() {
         try {

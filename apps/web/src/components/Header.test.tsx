@@ -38,9 +38,8 @@ describe("Header", () => {
                 "href",
             ),
         ).toBe("/login");
-        expect(
-            screen.getByRole("link", { name: "Sign up" }).getAttribute("href"),
-        ).toBe("/signup");
+        // Sign-up is reached from the sign-in page, not a second header row.
+        expect(screen.queryByRole("link", { name: "Sign up" })).toBeNull();
         expect(
             screen
                 .getByRole("button", { name: "Catalog" })

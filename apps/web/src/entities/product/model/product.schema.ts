@@ -16,10 +16,7 @@ export const productSchema = z.object({
     averageRating: z.number().min(1).max(5).nullable().optional(),
     ratingCount: z.number().int().min(0).optional(),
     slug: z.string().optional(),
-    brand: z
-        .object({ id: z.uuid(), name: z.string() })
-        .nullable()
-        .optional(),
+    brand: z.object({ id: z.uuid(), name: z.string() }).nullable().optional(),
     // Present (possibly null) on list and detail reads, so a tile can skip
     // its own image request.
     imageUrl: z.string().nullable().optional(),

@@ -6,7 +6,6 @@ import {
     productHref,
     type Product,
 } from "@/entities/product/model/product.schema";
-import CompareToggle from "@/features/compare/ui/CompareToggle";
 import {
     useGetProductImagesQuery,
     useGetProductRatingsQuery,
@@ -56,8 +55,8 @@ export default function ProductTile({
         product.stockQuantity > 0 ? deliveryLabel(product.deliveryDays) : null;
 
     return (
-        <article className="group relative flex h-full flex-col gap-2">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-tile bg-store-tile">
+        <article className="relative flex h-full flex-col gap-2">
+            <div className="relative aspect-square overflow-hidden rounded-tile bg-store-tile">
                 {imageUrl ? (
                     <Image
                         src={imageUrl}
@@ -66,7 +65,7 @@ export default function ProductTile({
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 240px"
                         unoptimized
                         loading={imageLoading ? "eager" : "lazy"}
-                        className="object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.03]"
+                        className="object-cover"
                     />
                 ) : isLoadingImages ? (
                     <output className="flex h-full items-center justify-center p-3 text-sm text-store-muted">
@@ -86,23 +85,18 @@ export default function ProductTile({
                         </button>
                     </p>
                 ) : (
-                    <p className="flex h-full items-center justify-center p-3 text-center text-sm text-store-muted">
+                    <p className="flex h-full items-center justify-center p-3 text-center text-xs text-store-muted">
                         No product image available.
                     </p>
                 )}
                 {badge && (
-                    <span className="absolute top-3 left-3 -rotate-3 rounded-control bg-store-accent px-2.5 py-0.5 text-xs font-semibold text-store-accent-ink">
+                    <span className="absolute top-0 left-0 bg-store-ink px-2 py-1 text-xs font-medium text-white">
                         {badge}
                     </span>
                 )}
                 <TileFavouriteToggle
                     productId={product.id}
                     productName={product.name}
-                />
-                <CompareToggle
-                    productId={product.id}
-                    productName={product.name}
-                    variant="icon"
                 />
             </div>
 
@@ -113,11 +107,11 @@ export default function ProductTile({
 
             <div>
                 {product.brand && (
-                    <p className="text-xs font-semibold text-store-muted">
+                    <p className="text-[0.8125rem] font-medium text-store-muted">
                         {product.brand.name}
                     </p>
                 )}
-                <h3 className="line-clamp-2 text-sm leading-snug font-normal">
+                <h3 className="line-clamp-2 text-[0.9375rem] leading-snug font-normal">
                     <Link
                         className="text-store-ink after:absolute after:inset-0 after:rounded-tile hover:text-store-primary"
                         href={productHref(product)}
@@ -127,7 +121,7 @@ export default function ProductTile({
                 </h3>
             </div>
 
-            <div className="mt-auto flex flex-col gap-0.5 text-xs text-store-muted">
+            <div className="mt-auto flex flex-col gap-0.5 text-[0.8125rem] text-store-muted">
                 {product.ratingCount !== undefined ? (
                     product.averageRating != null && product.ratingCount > 0 ? (
                         <p className="flex items-center gap-1">
